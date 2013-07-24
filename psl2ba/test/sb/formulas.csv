@@ -1,0 +1,27 @@
+p U q,p U q
+p U (q U r),p U (q U r)
+! (p U (q U r)),! (p U (q U r))
+G F p -> G F q,G F p -> G F q
+F p U G q,F p U G q
+G p U q,G p U q
+! (F F p <-> F p),! (F F p <-> F p)
+! (G F p -> G F q),! (G F p -> G F q)
+! (G F p <-> G F q),! (G F p <-> G F q)
+p V (p | q),p V (p | q)
+(X p U X q) | ! X(p U q),(X p U X q) | ! X(p U q)
+(X p U q) | ! X(p U (p & q)),(X p U q) | ! X(p U (p & q))
+G (p -> F q) & ((X p U q) | ! X(p U (p & q))),G (p -> F q) & ((X p U q) | ! X(p U (p & q)))
+G (p -> F q) & ((X p U X q) | ! X(p U q)),G (p -> F q) & ((X p U X q) | ! X(p U q))
+G (p -> F q),G (p -> F q)
+! G (p -> X(q V r)),! G (p -> X(q V r))
+! (G F p | F G q),! (G F p | F G q)
+G (F p & F q),G (F p & F q)
+F p & F  ! p,F p & F  ! p
+(X q & r) V X(((s U p) V r) U (s V r)),(X q & r) V X(((s U p) V r) U (s V r))
+(G (q | G F p) & G (r | G F  ! p)) | G q | G r,(G (q | G F p) & G (r | G F  ! p)) | G q | G r
+(G (q | F G p) & G (r | F G  ! p)) | G q | G r,(G (q | F G p) & G (r | F G  ! p)) | G q | G r
+! ((G (q | G F p) & G (r | G F  ! p)) | G q | G r),! ((G (q | G F p) & G (r | G F  ! p)) | G q | G r)
+! ((G (q | F G p) & G (r | F G  ! p)) | G q | G r),! ((G (q | F G p) & G (r | F G  ! p)) | G q | G r)
+G (q | X G p) & G (r | X G  ! p),G (q | X G p) & G (r | X G  ! p)
+G (q | (X p & X ! p)),G (q | (X p & X ! p))
+(p U q) | (q U p),(p U q) | (q U p)

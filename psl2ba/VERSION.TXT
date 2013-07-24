@@ -1,0 +1,25 @@
+The rtl2ba Translator
+=====================
+
+2009-05-??
+----------
+  * Syntactic sugar: + supported in SEREs, weak until supported
+  * New directory structure of package
+  * 2-way Gastin/Oddoux construction for very weak ABAs implemented.
+  * Testsuite for automatically checking equivalence of formulas
+  * Transitions of SMV output are simplified. The output is now more
+    readable and NuSMV does not complain about constant transitions.
+
+
+2009-02-13
+----------
+  * Propositions that contain '=' and '!=' can be used in SEREs
+  * FAIRNESS instead of JUSTICE in smv output for compatibility reasons
+  * Optimizations of NFA constructions
+    
+
+2009-02-10
+----------
+  * first stable version
+  * Supports PLTL, and the linear-time cores of PSL and SVA. The Cl operator is not implemented jet.
+  * Outputs a 2-way ABA and NuSMV module that encodes an 1NBA.

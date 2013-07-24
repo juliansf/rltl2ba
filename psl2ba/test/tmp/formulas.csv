@@ -1,0 +1,5 @@
+a U b,a U b
+a U b,a V b
+G(grant -> O request),G(grant -> O request)
+{tt*} <>-> a,F a
+{tt*} []-> a,G a

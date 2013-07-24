@@ -1,0 +1,5 @@
+a, a
+a U b, a U b -- test
+tt U b, TRUE U b
+{tt*; p; tt*; r} []-> ff , F r -> (!p U r)
+{tt*:q:tt*:p:tt*;r} []-> ff, G((q & ! r & F r) -> (! p U r))
