@@ -1,5 +1,5 @@
 # Adapt the following paths
-extlib=./extlib-1.5
+extlib=./extlib-1.5.4
 cudd=./cudd-2.4.2
 src=src
 obj=obj

@@ -4,11 +4,16 @@
 *.class
 *.o
 *.pyc
+*.cmi
+*.cmo
+*.cmx
 
 # Libraries #
 #############
 *.lib
 *.a
+*.cma
+*.cmxa
 
 # Shared objects (inc. Windows DLLs) #
 ######################################
