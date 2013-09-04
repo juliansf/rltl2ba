@@ -1,0 +1,23 @@
+# OASIS_START
+# DO NOT EDIT (digest: 524a7127ed0be108736cfc90e5a1e598)
+IO
+Base64
+BitSet
+Dllist
+DynArray
+Enum
+ExtArray
+ExtHashtbl
+ExtLib
+ExtList
+ExtString
+Global
+OptParse
+Option
+PMap
+RefList
+Std
+UChar
+UTF8
+Unzip
+# OASIS_STOP

@@ -56,3 +56,16 @@
 .Trashes
 Icon?
 ehthumbs.db
+
+# Ocaml
+#######
+_log
+_build
+*.native
+*.byte
+*.d.native
+*.p.byte
+
+# Emacs backup copies
+#####################
+*~

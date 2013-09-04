@@ -1,0 +1,4 @@
+let x = p until q in
+let y = q until p in
+let r = true;true in
+x weak_until y with delay r in

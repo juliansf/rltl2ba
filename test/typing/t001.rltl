@@ -1,0 +1,4 @@
+let x =
+  set_alarm:true*true;
+  fire implies alarm_active until abort in
+true implies x

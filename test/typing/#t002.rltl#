@@ -1,0 +1,3 @@
+alarm;true until abort;true
+
+let always(x:rltl) = x weak_until false in always.(false)
