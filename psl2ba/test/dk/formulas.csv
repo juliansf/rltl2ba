@@ -1,0 +1,26 @@
+a U b,a U b
+a U b,a V b
+G(grant -> O request),G(grant -> O request)
+{tt*} <>-> a,F a
+{tt*} []-> a,G a
+{{! request}*} []-> !grant,G(grant -> O(request))
+{a;b} []-> c,a & X b -> X c
+{a || b} <>-> c,(a | b) & c
+{a && b} <>-> c,(a & b) & c
+{{!start}* || {{!start}*;start & !end;{!end}*}} []-> !grant,G(grant -> O(end & O start))
+G(grant -> O(Y({start;end} <>-> tt))),G(grant -> O(end & Y start))
+G(grant -> O(Y Y({start; tt; end} <>-> tt))),G(grant -> O(end & Y Y start))
+{tt*;b} <>-> tt,F b 
+{a} <>-> b,a & b
+{tt*;b} <>-> a,F (b & a)
+G(grant -> {request; tt*} <->-> tt),G(grant -> O(request))
+G(grant -> {start; tt; tt*} <->-> tt),G(grant -> O( Y start))
+G(grant -> ({{{start; tt*; end} && {!cancel}*}; tt*} <->-> tt)),G(grant -> O(end & !cancel & Y(!cancel S (start & !cancel))))
+{{(!start|cancel) || {(start&!cancel); {!cancel&!end}*; cancel}*}* ; {cancel* || (start&!cancel); {!cancel&!end}*}} []-> !grant,G(grant -> O (end & !cancel & Y (!cancel S (start & !cancel))))
+! G ((a) -> ({tt; tt; tt*} [-]-> (b))),! G ((a) -> Z H (b))
+F (G ({{!(m)} || {!o: tt*:m} || {n: tt*: o: tt*: m}} <->-> tt)),F (G ((m) -> (O ((o) -> (O (n))))))
+! G (F {fbm: tt* : (!tem | !trm) : tt* : (!a1m | !a2m) : tt* : !pm : tt* : (!a1m | !a2m) : tt* : !dbm : tt* : (!chm | !cvm)} <->-> tt),! G (F (((!(chm)) | (!(cvm))) & (O ((!(dbm)) & (O (((!(a1m)) | (!(a2m))) & (O ((!(pm)) & (O (((!(a1m)) | (!(a2m))) & (O (((!(tem)) | (!(trm))) & (O (fbm))))))))))))))
+{tt* ; {callPushd1&callTop_Down || callPushd1 : {!returnPopd1&!callTop_Down}* ; callTop_Down}} []-> ({tt*} <>-> callProcessd1),G (callPushd1 & ((!returnPopd1) U callTop_Down) -> F (callTop_Down & F(callProcessd1)))
+{tt*; {callPush & callEmpty || callPush : {!returnPop & !callEmpty}*; callEmpty}} []-> ({tt*} <>-> returnEmptyFalse),G ((callPush & (!returnPop U callEmpty)) -> F (callEmpty & F (returnEmptyFalse)))
+G ({(callPushd1 & returnEmptyTrue) || callPushd1 : {!returnEmptyTrue}* ; returnEmptyTrue} [-]-> {{!returnEmptyTrue}* || {!returnEmptyTrue}*; returnEmptyTrue} <>-> returnPopd1),G ((callPushd1 & F (returnEmptyTrue)) -> (!returnEmptyTrue U returnPopd1))
+G((e[2].u.ack) -> !(!(e[2].u.ack) S ((e[2].u.ack) S (e[1].req)))),G((e[2].u.ack) -> !(!(e[2].u.ack) S ((e[2].u.ack) S (e[1].req))))

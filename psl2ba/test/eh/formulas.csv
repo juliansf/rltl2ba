@@ -1,0 +1,12 @@
+p U (q & G r),p U (q & G r)
+p U (q & X(r U s)),p U (q & X(r U s))
+p U (q & X(r & (F (s & X(F (t & X(F (u & X F v)))))))),p U (q & X(r & (F (s & X(F (t & X(F (u & X F v))))))))
+F (p & X G q),F (p & X G q)
+F (p & X(q & X(F r))),F (p & X(q & X(F r)))
+F (q & X(p U r)),F (q & X(p U r))
+(F G q) | (F G p),(F G q) | (F G p)
+G (p -> (q U r)),G (p -> (q U r))
+F (p & X F (q & X F (r & X F s))),F (p & X F (q & X F (r & X F s)))
+G F p & G F q & G F r & G F s & G F t,G F p & G F q & G F r & G F s & G F t
+((p U q) U r) | ((q U r) U p) | ((r U p) U q),((p U q) U r) | ((q U r) U p) | ((r U p) U q)
+G (p -> (q U (G r | G s))),G (p -> (q U (G r | G s)))
