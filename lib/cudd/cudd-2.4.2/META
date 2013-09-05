@@ -1,0 +1,11 @@
+# OASIS_START
+# DO NOT EDIT (digest: 72c9e73826630f773b04913648d76ccc)
+version = "0.1.0"
+description = "This is a test package."
+archive(byte) = "cudd-c.cma"
+archive(byte, plugin) = "cudd-c.cma"
+archive(native) = "cudd-c.cmxa"
+archive(native, plugin) = "cudd-c.cmxs"
+exists_if = "cudd-c.cma"
+# OASIS_STOP
+

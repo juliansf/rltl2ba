@@ -1,0 +1,181 @@
+OASISFormat:  0.3
+OCamlVersion: >= 3.12.0
+FindlibVersion: >= 1.2.6
+Name:         rltl2ba
+Version:      0.1.0
+LicenseFile:  LICENSE
+License:      BSD3
+BuildType:    ocamlbuild (0.3)
+Authors:      Julian Samborski-Forlese, Cesar Sanchez
+Maintainers:  Julian Samborski-Forlese <julian.sf@imdea.org>
+Copyrights:   (C) 2013 IMDEA Software Institute
+Homepage:     http://software.imdea.org/~julian/rltl2ba
+Plugins:      DevFiles (0.3), StdFiles (0.3), META (0.3)
+#FilesAB:      src/RLTL2BAConf.ml.ab
+BuildTools:   ocamlbuild, make
+
+Synopsis:    Translator for RLTL expressions into Buchi automata.
+
+Flag libraries
+  Description: Install rltl libraries, for using inside Ocaml programs
+  Default: false
+
+PreBuildCommand: make cudd
+PostDistcleanCommand: make cudddistclean
+
+Library cudd
+  Path: lib/cudd
+  FindLibName: cudd
+  Install: false
+  Modules: Cudd
+  CSources: cudd_stubs.c
+  CCOpt: -I lib/cudd/include
+  CCLib: -lcudd -lcudd_util -lmtr -lepd -lst -Llib/cudd/lib
+
+Library oUnit
+  Path: lib/ounit-1.1.2/src
+  Install: false
+  Modules: OUnit, OUnitDiff
+  BuildDepends: unix
+  ByteOpt: -ppopt -DBACKTRACE -bin-annot
+  NativeOpt: -ppopt -DBACKTRACE -bin-annot
+
+#Library extlib
+#  Path: lib/extlib-1.5.4
+#  FindLibName: extlib
+#  Install: false
+#  Modules: IO,
+#           Base64,
+#           BitSet,
+#           Dllist,
+#           DynArray,
+#           Enum,
+#           ExtArray,
+#           ExtHashtbl,
+#           ExtLib,
+#           ExtList,
+#           ExtString,
+#           Global,
+#           OptParse,
+#           Option,
+#           PMap,
+#           RefList,
+#           Std,
+#           UChar,
+#           UTF8,
+#           Unzip
+#  ByteOpt: -bin-annot
+#  NativeOpt: -bin-annot
+
+
+Library utils
+  Path: src/utils
+  Install: false
+  Modules: Misc,
+           Config,
+           Clflags,
+           Warnings
+  Install$: flag(libraries)
+
+#Library "psllib"
+#  Path: 
+#  Install: false
+#  Modules: Psl
+#  ByteOpt: -bin-annot
+#  NativeOpt: -bin-annot
+  
+Library rltl
+  Path: src/rltl
+  Install: false
+  Pack: false
+  BuildDepends: cudd, utils
+  Modules: Expgen
+  InternalModules: Expgen_private,
+                   Manager,
+                   Node,
+                   Printexpr
+  ByteOpt: -bin-annot
+  NativeOpt: -bin-annot
+
+Library parsing
+  Path: src/parsing
+  Modules: Location,
+           Syntaxerr
+  InternalModules: Parser,
+                   Lexer,
+                   Printast
+  BuildDepends: utils
+  CompiledObject: best
+  BuildTools+: ocamllex, menhir
+  FindlibParent: rltl
+  Install$: flag(libraries)
+  ByteOpt: -bin-annot
+  NativeOpt: -bin-annot
+
+Library typing
+  Path: src/typing
+  Modules: Btype,
+           Predef,
+           Printtyp,
+           Typecheck,
+           Typedtree,
+           Typeenv
+  BuildDepends: rltl.parsing
+  CompiledObject: best
+  FindlibParent: rltl
+  Install$: flag(libraries)
+  ByteOpt: -bin-annot
+  NativeOpt: -bin-annot
+
+Library translator
+  Path: src/translator
+  Modules: Translate
+  InternalModules: Entry,
+                   Operpredef
+  BuildDepends: rltl, rltl.typing
+  CompiledObject: best
+  FindlibParent: rltl
+  Install$: flag(libraries)
+  ByteOpt: -bin-annot
+  NativeOpt: -bin-annot
+
+Library driver
+  Path: src/driver
+  Modules: Compile,
+           Errors
+  FindlibParent: rltl
+  Install$: flag(libraries)
+  ByteOpt: -bin-annot
+  NativeOpt: -bin-annot  
+
+Executable "rltl2ba"
+  Path: src
+  CompiledObject: best
+  BuildDepends: cudd, utils, rltl, rltl.parsing, rltl.typing, rltl.translator
+  MainIs: driver/main.ml
+
+Document "api-rltl"
+  Title:                API reference for RltlLib
+  Type:                 ocamlbuild (0.3)
+  InstallDir:           $htmldir/rltl
+  BuildTools+:          ocamldoc
+  XOCamlbuildPath:      src
+  XOCamlbuildLibraries: rltl
+
+Executable syntax_test
+  Path: test
+  MainIs: syntax_test.ml
+  Install: false
+  CompiledObject: native
+  Build$: flag(tests)
+  BuildDepends: oUnit, util, rltl.driver, rltl.parsing
+
+Test syntax
+  Command: $syntax_test
+  WorkingDirectory: test/syntax
+  TestTools: test
+
+SourceRepository head
+  Type: git
+  Location: git://github.com/juliansf/rltl2ba.git
+  Browser: https://github.com/juliansf/rltl2ba

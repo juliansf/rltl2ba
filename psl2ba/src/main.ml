@@ -1,7 +1,7 @@
 let _ =
 	let succ = Array.of_list [[1; 1]; [1; 2; 3; 2; 3; 1; 1]; [1; 1; 1]; []; []] in
 	let _ = Graph.sccs succ in
-	
+
 	(* parse command line arguments *)
 	let mode = ref "" in
 	let input = ref "dummy" in
@@ -10,7 +10,7 @@ let _ =
 	let old = ref false in
 	let simp = ref true in
 	let dgo = ref false in
-	
+
 	let usage = "usage: "^Sys.argv.(0)^" [options]\noptions:" in
 	let speclist = [
 		("-phi", Arg.String (fun s -> mode:="-phi"; input:= s), "<RTL> : outputs the formula");
@@ -23,8 +23,8 @@ let _ =
 		("-vars", Arg.String (fun s -> mode:="-vars"; input:= s), "<RTL> : outputs the variable declarations in NuSMV");
 		("-subeq", Arg.Tuple [Arg.String (fun s -> mode:="-subeq"; input:= s); Arg.Set_string(input2)], "<RTL> <LTL> : outputs a NuSMV module for L(RTL) <= L(LTL)");
 		("-supeq", Arg.Tuple [Arg.String (fun s -> mode:="-supeq"; input:= s); Arg.Set_string(input2)], "<RTL> <LTL> : outputs a NuSMV module for L(RTL) >= L(LTL)");
-		
-		
+
+
 		("-dgo", Arg.Set(dgo), " : disables Gastin/Oddoux construction");
 		("-nos", Arg.Clear(simp), " : disables simplification of transitions");
 		("-old", Arg.Set(old), " : old version of translation is used");
@@ -34,7 +34,7 @@ let _ =
 		speclist
 		(fun x -> raise (Arg.Bad ("Bad argument : " ^ x)))
 		usage;
-	
+
 	(* Parses the given input string and handles errors *)
 	let parse (s: string) : Psl.psl =
 		let lexbuf = Lexing.from_string s in
@@ -49,7 +49,7 @@ let _ =
 				prerr_endline "^";
 				exit 1
 	in
-	
+
 	match !mode with
 	| "-phi" ->
 			let phi = parse !input in
@@ -79,7 +79,7 @@ let _ =
 			print_endline ("/* Formula: "^Psl.toStr phi);
 			print_endline ("   NNF: "^Psl.toStr (Psl.toNnf phi));
 			print_endline ("   ABA is "^(if Aba.isVeryWeak aba' then "very weak" else "not very weak")^" */");
-			
+
 			print_endline (Aba.toStr aba "TRUE" "FALSE");
 			print_endline (Smv.toStr smv');
 			print_endline ("/* "^(Psl.toStr phi)^" */");
@@ -151,5 +151,3 @@ let _ =
 			print_endline ((Psl.smvheader phi)^"LTLSPEC\n  !("^(!input2)^")\n\n"^(Smv.toStr smv'))
 	| _ ->
 			Arg.usage speclist usage
-
-

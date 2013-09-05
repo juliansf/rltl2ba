@@ -1,0 +1,54 @@
+# OASIS_START
+# DO NOT EDIT (digest: b3fa8a7ecaa0e96bb50d40c274df50ff)
+version = "0.1.0"
+description = "Translator for RLTL expressions into Buchi automata."
+requires = "cudd utils"
+archive(byte) = "rltl.cma"
+archive(byte, plugin) = "rltl.cma"
+archive(native) = "rltl.cmxa"
+archive(native, plugin) = "rltl.cmxs"
+exists_if = "rltl.cma"
+package "typing" (
+ version = "0.1.0"
+ description = "Translator for RLTL expressions into Buchi automata."
+ requires = "rltl.parsing"
+ archive(byte) = "typing.cma"
+ archive(byte, plugin) = "typing.cma"
+ archive(native) = "typing.cmxa"
+ archive(native, plugin) = "typing.cmxs"
+ exists_if = "typing.cma"
+)
+
+package "translator" (
+ version = "0.1.0"
+ description = "Translator for RLTL expressions into Buchi automata."
+ requires = "rltl rltl.typing"
+ archive(byte) = "translator.cma"
+ archive(byte, plugin) = "translator.cma"
+ archive(native) = "translator.cmxa"
+ archive(native, plugin) = "translator.cmxs"
+ exists_if = "translator.cma"
+)
+
+package "parsing" (
+ version = "0.1.0"
+ description = "Translator for RLTL expressions into Buchi automata."
+ requires = "utils"
+ archive(byte) = "parsing.cma"
+ archive(byte, plugin) = "parsing.cma"
+ archive(native) = "parsing.cmxa"
+ archive(native, plugin) = "parsing.cmxs"
+ exists_if = "parsing.cma"
+)
+
+package "driver" (
+ version = "0.1.0"
+ description = "Translator for RLTL expressions into Buchi automata."
+ archive(byte) = "driver.cma"
+ archive(byte, plugin) = "driver.cma"
+ archive(native) = "driver.cmxa"
+ archive(native, plugin) = "driver.cmxs"
+ exists_if = "driver.cma"
+)
+# OASIS_STOP
+

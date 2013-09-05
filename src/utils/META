@@ -1,0 +1,11 @@
+# OASIS_START
+# DO NOT EDIT (digest: 05ab5e6f9dd2d4cf97101c5981120ab0)
+version = "0.1.0"
+description = "Translator for RLTL expressions into Buchi automata."
+archive(byte) = "utils.cma"
+archive(byte, plugin) = "utils.cma"
+archive(native) = "utils.cmxa"
+archive(native, plugin) = "utils.cmxs"
+exists_if = "utils.cma"
+# OASIS_STOP
+

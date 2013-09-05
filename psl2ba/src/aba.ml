@@ -86,7 +86,7 @@ let toStr (aba: aba) (tt: string) (ff: string) : string =
 
 
 (** Removes unreachable states. *)
-let rem_unreachables (aut:aba) : aba = 
+let rem_unreachables (aut:aba) : aba =
 	let n = Array.length aut.delta in
 	let reachable = Array.make n false in
 	(* Mark reachable states *)
@@ -96,7 +96,7 @@ let rem_unreachables (aut:aba) : aba =
 		| Psl.False -> ()
 		| Psl.Atom (St (q, _)) -> reachable.(q) <- true
 		| Psl.Atom _ -> ()
-		| Psl.Neg bqs1 -> mark bqs1 
+		| Psl.Neg bqs1 -> mark bqs1
 		| Psl.And (bqs1, bqs2) -> (mark bqs1; mark bqs2)
 		| Psl.Or (bqs1, bqs2) -> (mark bqs1; mark bqs2)
 	in
@@ -114,9 +114,9 @@ let rem_unreachables (aut:aba) : aba =
 	let rec rename (bqs:succ_states) : succ_states = match bqs with
 		| Psl.True
 		| Psl.False -> bqs
-		| Psl.Atom (St (q, d)) -> Psl.Atom (St (q-dec.(q), d)) 
+		| Psl.Atom (St (q, d)) -> Psl.Atom (St (q-dec.(q), d))
 		| Psl.Atom _ -> bqs
-		| Psl.Neg bqs1 -> Psl.Neg (rename bqs1) 
+		| Psl.Neg bqs1 -> Psl.Neg (rename bqs1)
 		| Psl.And (bqs1, bqs2) -> Psl.And (rename bqs1, rename bqs2)
 		| Psl.Or (bqs1, bqs2) -> Psl.Or (rename bqs1, rename bqs2)
 	in
@@ -124,7 +124,7 @@ let rem_unreachables (aut:aba) : aba =
 		if reachable.(i) then begin
 			del.(i-dec.(i)) <- rename aut.delta.(i);
 			fin.(i-dec.(i)) <- aut.final.(i)
-		end	
+		end
 	done;
 	{delta=del; start=aut.start-dec.(aut.start); final=fin}
 
@@ -134,24 +134,24 @@ let rem_unreachables (aut:aba) : aba =
 (** Removes false and true propositions when they are superfluous. *)
 let simply_remttff (aut:aba) : aba =
 	let rec remttff (bqs:succ_states)	: succ_states = match bqs with
-		| Psl.True 
-		| Psl.False 
+		| Psl.True
+		| Psl.False
 		| Psl.Atom _ -> bqs
-		| Psl.Neg bqs1 -> 
+		| Psl.Neg bqs1 ->
 				let ret1 = remttff bqs1 in
 				begin match ret1 with
 					| Psl.True -> Psl.False
 				  | Psl.False -> Psl.True
 					| _ -> Psl.Neg ret1
 				end
-		| Psl.And (bqs1, bqs2) -> 
+		| Psl.And (bqs1, bqs2) ->
 				let ret1 = remttff bqs1 in
 				let ret2 = remttff bqs2 in
 				if ret1=Psl.False || ret2=Psl.False then Psl.False else
 				if ret1=Psl.True then ret2 else
 				if ret2=Psl.True then ret1 else
 				Psl.And (ret1, ret2)
-		| Psl.Or (bqs1, bqs2) -> 
+		| Psl.Or (bqs1, bqs2) ->
 				let ret1 = remttff bqs1 in
 				let ret2 = remttff bqs2 in
 				if ret1=Psl.True || ret2=Psl.True then Psl.True else
@@ -168,41 +168,41 @@ let simply_merge (aut:aba) : aba =
 	let s2q = ref StrMap.empty in  (* proposition -> min_state *)
 	let q2q = ref IntMap.empty in  (* redirect: state -> min_state *)
 	(* store least state of the set of states that direct to same proposition *)
-	Array.iteri  
+	Array.iteri
 		(fun q qs -> match qs with
 			| Psl.True ->  (* identify True by Prop "11" *)
-					if not(StrMap.mem "11" !s2q) 
+					if not(StrMap.mem "11" !s2q)
 						then	s2q := StrMap.add "11" q !s2q
 						else
 							let minq = StrMap.find "11" !s2q in
 							q2q := IntMap.add q minq !q2q
 			| Psl.False ->  (* identify True by Prop "00" *)
-					if not(StrMap.mem "00" !s2q) 
+					if not(StrMap.mem "00" !s2q)
 						then s2q := StrMap.add "00" q !s2q
 						else
 							let minq = StrMap.find "00" !s2q in
 							q2q := IntMap.add q minq !q2q
-			| Psl.Atom (Pr s) -> 
-					if not(StrMap.mem s !s2q) 
+			| Psl.Atom (Pr s) ->
+					if not(StrMap.mem s !s2q)
 						then s2q := StrMap.add s q !s2q
 						else
 							let minq = StrMap.find s !s2q in
 							q2q := IntMap.add q minq !q2q
-			| _ -> ())			
+			| _ -> ())
 		aut.delta;
 	(* redirect states *)
 	let rec redir (bqs:succ_states) : succ_states = match bqs with
-		| Psl.True 
-		| Psl.False -> bqs 
-		| Psl.Atom (St (q,d)) -> 
-				if IntMap.mem q !q2q then 
+		| Psl.True
+		| Psl.False -> bqs
+		| Psl.Atom (St (q,d)) ->
+				if IntMap.mem q !q2q then
 					let minq = IntMap.find q !q2q in
 					Psl.Atom (St (minq,d))
 				else bqs
 		| Psl.Atom _ -> bqs
 		| Psl.Neg bqs1 -> Psl.Neg (redir bqs1)
-		| Psl.And (bqs1, bqs2) -> Psl.And (redir bqs1, redir bqs2)  
-		| Psl.Or (bqs1, bqs2) -> Psl.Or (redir bqs1, redir bqs2)  
+		| Psl.And (bqs1, bqs2) -> Psl.And (redir bqs1, redir bqs2)
+		| Psl.Or (bqs1, bqs2) -> Psl.Or (redir bqs1, redir bqs2)
 	in
 	let del = Array.map redir aut.delta in
 	rem_unreachables {delta=del; start=aut.start; final=aut.final};;
@@ -212,14 +212,14 @@ let simply_merge (aut:aba) : aba =
 let simplify (aut:aba) (tt:string) (ff:string) : aba =
 	(* Replace (Pr tt) and (Pr ff) by True and False, respectively. *)
 	let rec subst (bqs:succ_states) : succ_states = match bqs with
-		| Psl.True  
-		| Psl.False -> bqs 
-		| Psl.Atom (Pr s) -> 
-				if s=tt then Psl.True else 
+		| Psl.True
+		| Psl.False -> bqs
+		| Psl.Atom (Pr s) ->
+				if s=tt then Psl.True else
 					if s=ff then Psl.False else
 						bqs
 		| Psl.Atom (NPr s) ->
-				if s=tt then Psl.False else 
+				if s=tt then Psl.False else
 					if s=ff then Psl.True else
 						bqs
 		| Psl.Atom _ -> bqs
@@ -237,14 +237,14 @@ let simplify (aut:aba) (tt:string) (ff:string) : aba =
 (** Extracts the underlying graph from an ABA *)
 let toGraph (aut:aba) : Graph.graph =
 	let rec get_succs (bqs:succ_states)	: int list = match bqs with
-		| Psl.True 
-		| Psl.False 
-		| Psl.Atom Pr _ 
+		| Psl.True
+		| Psl.False
+		| Psl.Atom Pr _
 		| Psl.Atom NPr _ -> []
 		| Psl.Atom (St (q, _)) -> [q]
-		| Psl.Neg bqs1 -> get_succs bqs1 
-		| Psl.And (bqs1, bqs2)  
-		| Psl.Or (bqs1, bqs2) -> (get_succs bqs1) @ (get_succs bqs2) 
+		| Psl.Neg bqs1 -> get_succs bqs1
+		| Psl.And (bqs1, bqs2)
+		| Psl.Or (bqs1, bqs2) -> (get_succs bqs1) @ (get_succs bqs2)
 	in
 	let succ = Array.map get_succs aut.delta in  (* extract underlying graph *)
 	let succ' = Array.map Sets.fromList succ in  (* succ set instead of succ list *)
@@ -260,13 +260,13 @@ let isVeryWeak (aut:aba) : bool =
 	let succL = Array.to_list sccs in
 	let succS = Sets.fromList succL in
 	(* aut is very weak if each state is mapped to a different SCC *)
-	if List.length succL = List.length succS then true else false 
+	if List.length succL = List.length succS then true else false
 
 
 
 
 
-(** Converts a 2-way ABA into a nuSMV program (Dax/Klaedtke/Lange) 
+(** Converts a 2-way ABA into a nuSMV program (Dax/Klaedtke/Lange)
 	@param dgo disables Gastin/Oddoux construction if true
 *)
 (* type of substitutions for states and for symbols *)
@@ -277,16 +277,16 @@ let toSmv (aut:aba) (pref:string) (dgo:bool) : Smv.smv =
 	(* Returns the list [0; 1; 2; ...; n-1] *)
 	let nList (n:int) : int list = Array.to_list (Array.init n (fun i -> i)) in
 	(* Converts an array to an association list *)
-	let arr2ali (arr:'a array) = List.combine (nList (Array.length arr)) (Array.to_list arr)	in  
-	
+	let arr2ali (arr:'a array) = List.combine (nList (Array.length arr)) (Array.to_list arr)	in
+
 	let n = Array.length aut.delta in
-	let allL = nList n in 
+	let allL = nList n in
 	(* Returns the list of final states *)
-	let nonfinalsL : int list = 
+	let nonfinalsL : int list =
 		let allAli = (arr2ali aut.final) in
 		let finAli = List.filter (fun (_, b) -> not(b)) allAli in
 		fst (List.split finAli)
-	in 
+	in
 
 	(* Substitutes a state according to its direction *)
 	let subst_st ((q, d):int*dir) (s0:subst) (s1:subst) (s2:subst) (s3:subst) : Smv.varexp =
@@ -299,11 +299,11 @@ let toSmv (aut:aba) (pref:string) (dgo:bool) : Smv.smv =
 			| BySState' -> Smv.NextVar (pref^"s"^(string_of_int q))
 			| ByFinState -> begin match not(aut.final.(q)) with
 				| true -> Smv.Var (pref^"s"^(string_of_int q))
-				| false -> Smv.Var (pref^"r"^(string_of_int q)) 
+				| false -> Smv.Var (pref^"r"^(string_of_int q))
 				end
 			| ByFinState' -> begin match not(aut.final.(q)) with
 				| true -> Smv.NextVar (pref^"s"^(string_of_int q))
-				| false -> Smv.NextVar (pref^"r"^(string_of_int q)) 
+				| false -> Smv.NextVar (pref^"r"^(string_of_int q))
 				end
 		in
 		match d with
@@ -318,11 +318,11 @@ let toSmv (aut:aba) (pref:string) (dgo:bool) : Smv.smv =
 	let rec subst_succs (bqs:succ_states) (s0:subst) (s1:subst) (s2:subst) (s3:subst) (s4:subst') : Smv.varexp = match bqs with
 		|	Psl.True -> Smv.True
 		| Psl.False -> Smv.False
-		| Psl.Atom (Pr s) -> begin match s4 with 
+		| Psl.Atom (Pr s) -> begin match s4 with
 			| BySym -> Smv.Var s
-			| BySym' -> Smv.NextVar s 
+			| BySym' -> Smv.NextVar s
 			end
-		| Psl.Atom (NPr s) -> begin match s4 with 
+		| Psl.Atom (NPr s) -> begin match s4 with
 			| BySym -> Smv.Neg (Smv.Var s)
 			| BySym' -> Smv.Neg (Smv.NextVar s)
 			end
@@ -334,7 +334,7 @@ let toSmv (aut:aba) (pref:string) (dgo:bool) : Smv.smv =
 
 
 	(* ========== Variables consists of all ABA states + all final ABA states *)
-	(* less minterms for this order: r0 r1 ... s0 s1 ... *) 
+	(* less minterms for this order: r0 r1 ... s0 s1 ... *)
 	let smv_vars : string list =
 		let l = ref [] in
 		for i = 0 to n - 1 do
@@ -346,7 +346,7 @@ let toSmv (aut:aba) (pref:string) (dgo:bool) : Smv.smv =
 		List.rev !l
 	in
 	(* very weak version *)
-	let smv_vw_vars : string list =  
+	let smv_vw_vars : string list =
 		let l = ref [] in
 		for i = 0 to n - 1 do
 			l := (pref^"r"^(string_of_int i)) :: !l
@@ -356,37 +356,37 @@ let toSmv (aut:aba) (pref:string) (dgo:bool) : Smv.smv =
 	(* ========== Symbolic representation of initial states *)
 	let smv_init : Smv.varexp list =
 		(* r_init /\ -s1 /\ .. /\ -sm *)
-		let phi1 = 
-			List.fold_left 
-				(fun psi i -> Smv.And (psi, Smv.Neg (Smv.Var(pref^"s"^(string_of_int i)))))  
+		let phi1 =
+			List.fold_left
+				(fun psi i -> Smv.And (psi, Smv.Neg (Smv.Var(pref^"s"^(string_of_int i)))))
 				Smv.True
 				nonfinalsL
 		in
 		let phi1 = Smv.And (Smv.Var (pref^"r"^(string_of_int aut.start)), phi1) in
 		(* /\_r (r -> delta(r)[subst]) *)
-		let phi2 = 
-			List.fold_left 
-				(fun psi i -> 
+		let phi2 =
+			List.fold_left
+				(fun psi i ->
 					let ri_succs = subst_succs aut.delta.(i) ByFalse ByTrue ByRState ByTrue BySym in
-					Smv.And (psi, Smv.Imp (Smv.Var (pref^"r"^(string_of_int i)), ri_succs)))  
+					Smv.And (psi, Smv.Imp (Smv.Var (pref^"r"^(string_of_int i)), ri_succs)))
 				Smv.True
 				allL
 		in
 		[phi1; phi2]
 	in
 	(* very weak version *)
-	let smv_vw_init : Smv.varexp list =  
+	let smv_vw_init : Smv.varexp list =
 		(* r_init /\ s!, here we represent s! by -1 *)
-		let phi1 = 
+		let phi1 =
 			if nonfinalsL = [] then Smv.Var (pref^"r"^(string_of_int aut.start))
-			else Smv.And (Smv.Var (pref^"r"^(string_of_int aut.start)), Smv.Int (pref^"s", -1)) 
+			else Smv.And (Smv.Var (pref^"r"^(string_of_int aut.start)), Smv.Int (pref^"s", -1))
 		in
 		(* /\_r (r -> delta(r)[subst]) *)
-		let phi2 = 
-			List.fold_left 
-				(fun psi i -> 
+		let phi2 =
+			List.fold_left
+				(fun psi i ->
 					let ri_succs = subst_succs aut.delta.(i) ByFalse ByTrue ByRState ByTrue BySym in
-					Smv.And (psi, Smv.Imp (Smv.Var (pref^"r"^(string_of_int i)), ri_succs)))  
+					Smv.And (psi, Smv.Imp (Smv.Var (pref^"r"^(string_of_int i)), ri_succs)))
 				Smv.True
 				allL
 		in
@@ -395,93 +395,93 @@ let toSmv (aut:aba) (pref:string) (dgo:bool) : Smv.smv =
 	(* ========== Symbolic representation of the transition function *)
 	let smv_trans : Smv.varexp list =
 		let rset_forw = (* R set, forward constraints: /\_r (r -> delta(r)[subst]) *)
-			List.fold_left 
-				(fun psi i -> 
+			List.fold_left
+				(fun psi i ->
 					let ri_succs = subst_succs aut.delta.(i) ByTrue ByTrue ByRState ByRState' BySym in
-					Smv.And (psi, Smv.Imp (Smv.Var (pref^"r"^(string_of_int i)), ri_succs)))  
+					Smv.And (psi, Smv.Imp (Smv.Var (pref^"r"^(string_of_int i)), ri_succs)))
 				Smv.True
 				allL
 		in
 		let rset_backw = (* R set, backward constraints: /\_r (r' -> delta(r')[subst]) *)
-			List.fold_left 
-				(fun psi i -> 
+			List.fold_left
+				(fun psi i ->
 					let ri_succs = subst_succs aut.delta.(i) ByRState ByRState ByRState' ByTrue BySym' in
-					Smv.And (psi, Smv.Imp (Smv.NextVar (pref^"r"^(string_of_int i)), ri_succs)))  
+					Smv.And (psi, Smv.Imp (Smv.NextVar (pref^"r"^(string_of_int i)), ri_succs)))
 				Smv.True
 				allL
 		in
 		(* Case 1: S set is empty: /\_s (!s) *)
 		let sset_empty =
-			List.fold_left 
-				(fun psi i -> Smv.And (psi, Smv.Neg (Smv.Var(pref^"s"^(string_of_int i)))))  
+			List.fold_left
+				(fun psi i -> Smv.And (psi, Smv.Neg (Smv.Var(pref^"s"^(string_of_int i)))))
 				Smv.True
 				nonfinalsL
 		in
 		let sset_case1 = (* /\_s (r' <-> s') *)
-			List.fold_left 
-				(fun psi i -> Smv.And (psi, Smv.Eq (Smv.NextVar (pref^"r"^(string_of_int i)), Smv.NextVar (pref^"s"^(string_of_int i)))))  
+			List.fold_left
+				(fun psi i -> Smv.And (psi, Smv.Eq (Smv.NextVar (pref^"r"^(string_of_int i)), Smv.NextVar (pref^"s"^(string_of_int i)))))
 				Smv.True
 				nonfinalsL
 		in
 		let case1 = Smv.Imp (sset_empty, sset_case1) in
 		(* Case 2: S set is not empty: \/_s s *)
 		let sset_nonempty =
-			List.fold_left 
-				(fun psi i -> Smv.Or (psi, Smv.Var(pref^"s"^(string_of_int i))))  
+			List.fold_left
+				(fun psi i -> Smv.Or (psi, Smv.Var(pref^"s"^(string_of_int i))))
 				Smv.False
 				nonfinalsL
 		in
 		let sset_forw = (* S set, forward constraints: /\_s (s -> delta(s)[subst]) *)
-			List.fold_left 
-				(fun psi i -> 
+			List.fold_left
+				(fun psi i ->
 					let ri_succs = subst_succs aut.delta.(i) ByTrue ByTrue ByFinState ByFinState' BySym in
-					Smv.And (psi, Smv.Imp (Smv.Var (pref^"s"^(string_of_int i)), ri_succs)))  
+					Smv.And (psi, Smv.Imp (Smv.Var (pref^"s"^(string_of_int i)), ri_succs)))
 				Smv.True
 				nonfinalsL
 		in
 		let sset_backw = (* S set, backward constraints: /\_s (s' -> delta(s')[subst]) *)
-			List.fold_left 
-				(fun psi i -> 
+			List.fold_left
+				(fun psi i ->
 					let ri_succs = subst_succs aut.delta.(i) ByFinState ByFinState ByFinState' ByTrue BySym' in
-					Smv.And (psi, Smv.Imp (Smv.NextVar (pref^"s"^(string_of_int i)), ri_succs)))  
+					Smv.And (psi, Smv.Imp (Smv.NextVar (pref^"s"^(string_of_int i)), ri_succs)))
 				Smv.True
 				nonfinalsL
 		in
 		let case2 = Smv.Imp (sset_nonempty, Smv.And (sset_forw, sset_backw)) in
-		[rset_forw; rset_backw; case1; case2]	
+		[rset_forw; rset_backw; case1; case2]
 	in
 	(* very weak version *)
-	let smv_vw_trans : Smv.varexp list =  
+	let smv_vw_trans : Smv.varexp list =
 		let rset_forw = (* R set, forward constraints: /\_r (r -> delta(r)[subst]) *)
-			List.fold_left 
-				(fun psi i -> 
+			List.fold_left
+				(fun psi i ->
 					let ri_succs = subst_succs aut.delta.(i) ByTrue ByTrue ByRState ByRState' BySym in
-					Smv.And (psi, Smv.Imp (Smv.Var (pref^"r"^(string_of_int i)), ri_succs)))  
+					Smv.And (psi, Smv.Imp (Smv.Var (pref^"r"^(string_of_int i)), ri_succs)))
 				Smv.True
 				allL
 		in
 		let rset_backw = (* R set, backward constraints: /\_r (r' -> delta(r')[subst]) *)
-			List.fold_left 
-				(fun psi i -> 
+			List.fold_left
+				(fun psi i ->
 					let ri_succs = subst_succs aut.delta.(i) ByRState ByRState ByRState' ByTrue BySym' in
-					Smv.And (psi, Smv.Imp (Smv.NextVar (pref^"r"^(string_of_int i)), ri_succs)))  
+					Smv.And (psi, Smv.Imp (Smv.NextVar (pref^"r"^(string_of_int i)), ri_succs)))
 				Smv.True
 				allL
 		in
 		let sigma = Array.of_list (-1::nonfinalsL) in
-		let nsigma = Array.length sigma in 
+		let nsigma = Array.length sigma in
 		let sstate = (* /\_s (s -> (phi(s) -> next(s)') & (-phi(s) -> s')) *)
 			let forw_succs (i:int) = subst_succs aut.delta.(i) ByTrue ByTrue ByRState ByRState' BySym in
 			(* replaces next(r_i) by false *)
 			let rec rem_ri (i:int) (exp:Smv.varexp) =	match exp with
-				| Smv.True 
+				| Smv.True
 				| Smv.False
 				| Smv.Var _ -> exp
-				| Smv.NextVar s -> 
+				| Smv.NextVar s ->
 						if s=(pref^"r"^(string_of_int i)) then Smv.False else exp
-				| Smv.Int _  
+				| Smv.Int _
 				| Smv.NextInt _ -> exp
-				| Smv.Neg e1 -> Smv.Neg (rem_ri i e1) 
+				| Smv.Neg e1 -> Smv.Neg (rem_ri i e1)
 				| Smv.And (e1, e2) -> Smv.And (rem_ri i e1, rem_ri i e2)
 				| Smv.Or (e1, e2) -> Smv.Or (rem_ri i e1, rem_ri i e2)
 				| Smv.Imp (e1, e2) -> Smv.Imp (rem_ri i e1, rem_ri i e2)
@@ -489,7 +489,7 @@ let toSmv (aut:aba) (pref:string) (dgo:bool) : Smv.smv =
 			in
 			List.fold_left
 				(fun psi si ->  (* si is a pointer to s_i *)
-					let bigphi = 
+					let bigphi =
 						let ex_model =
 							match sigma.(si) with
 								| -1 -> Smv.True
@@ -505,28 +505,28 @@ let toSmv (aut:aba) (pref:string) (dgo:bool) : Smv.smv =
 				(nList nsigma)
 		in
 		if nonfinalsL = [] then [rset_forw; rset_backw]
-		else [rset_forw; rset_backw; sstate]	
+		else [rset_forw; rset_backw; sstate]
 	in
 	(* ========== Symbolic representation of fair states *)
 	let smv_fair : Smv.varexp list = (* S set is empty: /\_s (!s) *)
-		[List.fold_left 
-			(fun psi i -> Smv.And (psi, Smv.Neg (Smv.Var(pref^"s"^(string_of_int i)))))  
+		[List.fold_left
+			(fun psi i -> Smv.And (psi, Smv.Neg (Smv.Var(pref^"s"^(string_of_int i)))))
 			Smv.True
-			nonfinalsL] 
+			nonfinalsL]
 	in
-		
+
 	if not(dgo) && (isVeryWeak aut) then
 		let b = (nonfinalsL = []) in
 		{Smv.vars = smv_vw_vars;
 		Smv.ints = if b then [] else [(pref^"s", (-1 :: nonfinalsL))];
-		Smv.init = smv_vw_init; 
-		Smv.trans = smv_vw_trans; 
+		Smv.init = smv_vw_init;
+		Smv.trans = smv_vw_trans;
 		Smv.fair = if b then [] else [Smv.Int (pref^"s", -1)]}
-	else	
+	else
 		{Smv.vars = smv_vars;
-		Smv.ints = [];	
-		Smv.init = smv_init; 
-		Smv.trans = smv_trans; 
+		Smv.ints = [];
+		Smv.init = smv_init;
+		Smv.trans = smv_trans;
 		Smv.fair = smv_fair}
 
 
@@ -543,16 +543,16 @@ let toSmv2 (aut:aba) (pref:string) : Smv.smv =
 	(* Returns the list [0; 1; 2; ...; n-1] *)
 	let nList (n:int) : int list = Array.to_list (Array.init n (fun i -> i)) in
 	(* Converts an array to an association list *)
-	let arr2ali (arr:'a array) = List.combine (nList (Array.length arr)) (Array.to_list arr)	in  
-	
+	let arr2ali (arr:'a array) = List.combine (nList (Array.length arr)) (Array.to_list arr)	in
+
 	let n = Array.length aut.delta in
-	let allL = nList n in 
+	(*let allL = nList n in *)
 	(* Returns the list of final states *)
-	let nonfinalsL : int list = 
+	let nonfinalsL : int list =
 		let allAli = (arr2ali aut.final) in
 		let finAli = List.filter (fun (_, b) -> not(b)) allAli in
 		fst (List.split finAli)
-	in 
+	in
 
 	(* Substitutes a state according to its direction *)
 	let subst_st ((q, d):int*dir) (s0:subst) (s1:subst) (s2:subst) (s3:subst) : Smv.varexp =
@@ -565,11 +565,11 @@ let toSmv2 (aut:aba) (pref:string) : Smv.smv =
 			| BySState' -> Smv.NextVar (pref^"s"^(string_of_int q))
 			| ByFinState -> begin match not(aut.final.(q)) with
 				| true -> Smv.Var (pref^"s"^(string_of_int q))
-				| false -> Smv.Var (pref^"r"^(string_of_int q)) 
+				| false -> Smv.Var (pref^"r"^(string_of_int q))
 				end
 			| ByFinState' -> begin match not(aut.final.(q)) with
 				| true -> Smv.NextVar (pref^"s"^(string_of_int q))
-				| false -> Smv.NextVar (pref^"r"^(string_of_int q)) 
+				| false -> Smv.NextVar (pref^"r"^(string_of_int q))
 				end
 		in
 		match d with
@@ -584,11 +584,11 @@ let toSmv2 (aut:aba) (pref:string) : Smv.smv =
 	let rec subst_succs (bqs:succ_states) (s0:subst) (s1:subst) (s2:subst) (s3:subst) (s4:subst') : Smv.varexp = match bqs with
 		|	Psl.True -> Smv.True
 		| Psl.False -> Smv.False
-		| Psl.Atom (Pr s) -> begin match s4 with 
+		| Psl.Atom (Pr s) -> begin match s4 with
 			| BySym -> Smv.Var s
-			| BySym' -> Smv.NextVar s 
+			| BySym' -> Smv.NextVar s
 			end
-		| Psl.Atom (NPr s) -> begin match s4 with 
+		| Psl.Atom (NPr s) -> begin match s4 with
 			| BySym -> Smv.Neg (Smv.Var s)
 			| BySym' -> Smv.Neg (Smv.NextVar s)
 			end
@@ -600,9 +600,9 @@ let toSmv2 (aut:aba) (pref:string) : Smv.smv =
 
 
 	(* ========== Variables consists of all ABA states + all final ABA states *)
-	(* less minterms for this order: r0 r1 ... r{n-1} *) 
-	let smv_vars : string list = 
-		List.rev	
+	(* less minterms for this order: r0 r1 ... r{n-1} *)
+	let smv_vars : string list =
+		List.rev
 			(List.fold_left
 				(fun lst i -> (pref^"r"^(string_of_int i)) :: lst)
 				[]
@@ -611,35 +611,35 @@ let toSmv2 (aut:aba) (pref:string) : Smv.smv =
 	(* ========== Symbolic representation of initial states *)
 	let smv_init : Smv.varexp list =
 		(* r_init /\ -r1 /\ .. /\ -r{n-1} *)
-		[List.fold_left 
-			(fun psi i -> 
+		[List.fold_left
+			(fun psi i ->
 				if i = aut.start then
-					Smv.And (psi, Smv.Var(pref^"r"^(string_of_int i)))  
+					Smv.And (psi, Smv.Var(pref^"r"^(string_of_int i)))
 				else
-					Smv.And (psi, Smv.Neg (Smv.Var(pref^"r"^(string_of_int i)))))  
+					Smv.And (psi, Smv.Neg (Smv.Var(pref^"r"^(string_of_int i)))))
 			Smv.True
 			(nList n)]
 	in
 	(* ========== Symbolic representation of the transition function *)
 	let smv_trans : Smv.varexp list =
 		(* /\_r (r -> delta(r)[subst]) *)
-		[List.fold_left 
-			(fun psi i -> 
+		[List.fold_left
+			(fun psi i ->
 				let ri_succs = subst_succs aut.delta.(i) ByTrue ByTrue ByRState ByRState' BySym in
-				Smv.And (psi, Smv.Imp (Smv.Var (pref^"r"^(string_of_int i)), ri_succs)))  
+				Smv.And (psi, Smv.Imp (Smv.Var (pref^"r"^(string_of_int i)), ri_succs)))
 			Smv.True
 			(nList n)]
 	in
 	(* ========== Symbolic representation of fair states *)
-	let smv_fair : Smv.varexp list = 
+	let smv_fair : Smv.varexp list =
 		(* Fi's, where Fi := {} *)
-		[(* to be done *)] 
+		[(* to be done *)]
 	in
-		
+
 	{Smv.vars = smv_vars;
-	Smv.ints = [];	
-	Smv.init = smv_init; 
-	Smv.trans = smv_trans; 
+	Smv.ints = [];
+	Smv.init = smv_init;
+	Smv.trans = smv_trans;
 	Smv.fair = smv_fair}
 
 
@@ -753,7 +753,7 @@ let toSmv3 (aut:aba) (tt:string) (ff:string) (pref:string) : string =
 		str := !str^"\n";
 		(* ===== S set, if S set is empty *)
 		str := (!str)^"  & (("^tt;
-		for i = 0 to n - 1 do  
+		for i = 0 to n - 1 do
 			if not(aut.final.(i)) then
 				str := !str^" & !"^pref^"s"^(string_of_int i)
 		done;
@@ -768,12 +768,12 @@ let toSmv3 (aut:aba) (tt:string) (ff:string) (pref:string) : string =
 		(* =====  S set, if S set is not empty *)
 		str := !str^"  & (("^ff;
 		for i = 0 to n - 1 do
-			if not(aut.final.(i)) then 
+			if not(aut.final.(i)) then
 				str := !str^"  | "^pref^"s"^(string_of_int i)
 		done;
 		str := !str^") ->\n";
 		str := !str^"      ("^tt^"\n";  (* forward constraints ... *)
-		for i = 0 to n - 1 do  
+		for i = 0 to n - 1 do
 			if not(aut.final.(i)) then begin
 				str := !str^"      & ("^pref^"s"^(string_of_int i)^" -> "^
 				(subst_succs aut.delta.(i) ByTrue ByTrue ByFinState ByFinState' BySym)^")\n";
@@ -883,4 +883,3 @@ let toSmv_old (aut: aba) (tt:string) (ff:string) : string =
 	"FAIRNESS\n"^smv_finals^"\n"^
 	(* "SPEC\n"^ " !(State in "^(intset2str ini)^" & EG 1)\n"^ *)
 	"-- end of automaton\n";;
-

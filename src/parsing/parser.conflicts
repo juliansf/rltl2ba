@@ -1,0 +1,60 @@
+
+** Conflict (shift/reduce) in state 91.
+** Tokens involved: TRUE STAR LP LB IDENT FALSE BEGIN BANG
+** The following explanations concentrate on token TRUE.
+** This state is reached from expression after reading:
+
+simple_expr simple_expr 
+
+** The derivations that appear below have the following common factor:
+** (The question mark symbol (?) represents the spot where the derivations begin to differ.)
+
+expression 
+expr EOF 
+simple_expr 
+(?)
+
+** In state 91, looking ahead at TRUE, shifting is permitted
+** because of the following sub-derivation:
+
+simple_expr simple_expr 
+            simple_expr simple_expr 
+                        . TRUE 
+
+** In state 91, looking ahead at TRUE, reducing production
+** simple_expr -> simple_expr simple_expr 
+** is permitted because of the following sub-derivation:
+
+simple_expr simple_expr // lookahead token appears because simple_expr can begin with TRUE
+simple_expr simple_expr . 
+
+** Conflict (shift/reduce) in state 31.
+** Tokens involved: TRUE STAR LP LB IDENT FALSE BEGIN BANG
+** The following explanations concentrate on token TRUE.
+** This state is reached from expression after reading:
+
+LP simple_expr simple_expr 
+
+** The derivations that appear below have the following common factor:
+** (The question mark symbol (?) represents the spot where the derivations begin to differ.)
+
+expression 
+expr EOF 
+simple_expr 
+LP expr RP 
+   simple_expr 
+   (?)
+
+** In state 31, looking ahead at TRUE, shifting is permitted
+** because of the following sub-derivation:
+
+simple_expr simple_expr 
+            simple_expr simple_expr 
+                        . TRUE 
+
+** In state 31, looking ahead at TRUE, reducing production
+** simple_expr -> simple_expr simple_expr 
+** is permitted because of the following sub-derivation:
+
+simple_expr simple_expr // lookahead token appears because simple_expr can begin with TRUE
+simple_expr simple_expr . 

@@ -1,0 +1,10 @@
+--let x = y in
+--let x = tt in
+--let x = ff in
+--let x = !a in
+let x = a & b in
+--let x = a | b in
+--let x = !a & !b | a & b in
+{
+  x --until y with delay r
+}

@@ -1,0 +1,11 @@
+# OASIS_START
+# DO NOT EDIT (digest: 78e60c2c5dedd7f7103ed49f728e6fc0)
+version = "0.1.0"
+description = "Translator for RLTL expressions into Buchi automata."
+archive(byte) = "cudd.cma"
+archive(byte, plugin) = "cudd.cma"
+archive(native) = "cudd.cmxa"
+archive(native, plugin) = "cudd.cmxs"
+exists_if = "cudd.cma"
+# OASIS_STOP
+
