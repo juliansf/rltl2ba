@@ -28,8 +28,11 @@ Library cudd
   FindLibName: cudd
   Install: false
   Modules: Cudd
-  CSources: cudd_stubs.c
-  CCOpt: -I lib/cudd/include
+  CSources: mlcudd.h,
+            mlcudd.c,
+            cudd_stubs.h,
+            cudd_stubs.c
+  CCOpt: -I lib/cudd/include -I lib/cudd/
   CCLib: -lcudd -lcudd_util -lmtr -lepd -lst -Llib/cudd/lib
 
 Library oUnit

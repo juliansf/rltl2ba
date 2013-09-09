@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: d541dd4f8f8270be904b1a32f066c183) *)
+(* DO NOT EDIT (digest: ac0b4ead9d287f513ba6296929e2aea3) *)
 module OASISGettext = struct
 (* # 21 "src/oasis/OASISGettext.ml" *)
 
@@ -488,13 +488,24 @@ let package_default =
           ("translator", ["src/translator"]);
           ("driver", ["src/driver"])
        ];
-     lib_c = [("cudd", "lib/cudd", [])];
+     lib_c =
+       [("cudd", "lib/cudd", ["lib/cudd/mlcudd.h"; "lib/cudd/cudd_stubs.h"])];
      flags =
        [
           (["oasis_library_cudd_ccopt"; "compile"],
             [
                (OASISExpr.EBool true,
-                 S [A "-ccopt"; A "-I"; A "-ccopt"; A "lib/cudd/include"])
+                 S
+                   [
+                      A "-ccopt";
+                      A "-I";
+                      A "-ccopt";
+                      A "lib/cudd/include";
+                      A "-ccopt";
+                      A "-I";
+                      A "-ccopt";
+                      A "lib/cudd/"
+                   ])
             ]);
           (["oasis_library_cudd_cclib"; "link"],
             [
@@ -652,6 +663,6 @@ let package_default =
 
 let dispatch_default = MyOCamlbuildBase.dispatch_default package_default;;
 
-# 656 "myocamlbuild.ml"
+# 667 "myocamlbuild.ml"
 (* OASIS_STOP *)
 Ocamlbuild_plugin.dispatch dispatch_default;;

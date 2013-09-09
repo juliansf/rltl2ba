@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5de7809d4decaf0873231f04892fc5d4)
+# DO NOT EDIT (digest: fe555089d1a35166a43ebb9fc405540a)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -16,6 +16,7 @@
 # Library cudd
 "lib/cudd/cudd.cmxs": use_cudd
 <lib/cudd/*.ml{,i}>: oasis_library_cudd_ccopt
+"lib/cudd/mlcudd.c": oasis_library_cudd_ccopt
 "lib/cudd/cudd_stubs.c": oasis_library_cudd_ccopt
 <lib/cudd/cudd.{cma,cmxa}>: oasis_library_cudd_cclib
 "lib/cudd/libcudd_stubs.lib": oasis_library_cudd_cclib
