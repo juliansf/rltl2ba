@@ -55,8 +55,8 @@ external find_essential: node -> node =
 external iter_cube: (tbool array -> unit) -> node -> unit =
   "caml_cudd_bdd_iter_cube"
 
-external first_cube: node -> tbool array =
-  "caml_cudd_bdd_first_cube"
+(*external first_cube: node -> tbool array =
+  "caml_cudd_bdd_first_cube"*)
 
 external bdd_cubes: node -> tbool array list =
   "caml_cudd_bdd_cubes"
