@@ -177,4 +177,8 @@ let print_manager ppf mgr =
     line 0 ppf "%d:\n" (node_id n);
     print_expr 1 ppf e
   in
-  Manager.apply f mgr
+  let size = Manager.size mgr in
+  let mgr_array = Array.init size (fun i -> Manager.lookup mgr i) in
+  for i=0 to size-1 do
+    f i mgr_array.(i)
+  done

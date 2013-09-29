@@ -2,15 +2,18 @@
 open Config
 open Clflags
 
-let process_expression_file ppf name =
-  Compile.expression_file ppf name
+let process_expression_file ty ppf name =
+  Compile.expression_file ty ppf name
 
 let process_expression_string ppf s =
   Compile.expression_string ppf s
 
 let process_file ppf name =
   if Filename.check_suffix name !Config.rltl_suffix then begin
-    process_expression_file ppf name
+    process_expression_file Predef.type_rltl ppf name
+  end
+  else if Filename.check_suffix name !Config.reg_suffix then begin
+    process_expression_file Predef.type_regex ppf name
   end
   else
     raise (Arg.Bad("don't know what to d with " ^ name))
@@ -23,7 +26,7 @@ let usage = "Usage: rltl2ba <options> <files>\nOptions are:"
 let ppf = Format.err_formatter
 
 let anon = process_file ppf
-let expr = process_expression_file ppf
+let expr = process_expression_file Predef.type_rltl ppf
 let str = process_expression_string ppf
 
 let show_config () =
@@ -36,7 +39,9 @@ module Options = Main_args.Make_rltlba_options(struct
   let _annot = set annot
   let _dintcode = set dump_intcode
   let _dparsetree = set dump_parsetree
+  let _dot = set dot
   let _i = anon
+  let _nfa = set nfa
   let _o s = output_name := Some s
   let _s = str
 (*  let _stdin () = set use_stdin *)

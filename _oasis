@@ -92,11 +92,18 @@ Library rltl
   Install: false
   Pack: false
   BuildDepends: cudd, utils
-  Modules: Expgen
+  Modules: Rltl
   InternalModules: Expgen_private,
                    Manager,
                    Node,
-                   Printexpr
+                   Printexpr,
+                   Exptree,
+                   automata/Bdd,
+                   automata/Printbdd,
+                   automata/Nfa,
+                   automata/Printnfa,
+                   automata/Autmanager,
+                   automata/Printautomata
   ByteOpt: -bin-annot
   NativeOpt: -bin-annot
 

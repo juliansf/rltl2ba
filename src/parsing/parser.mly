@@ -51,7 +51,7 @@
 %token BANG
 %token BANGEQUAL
 %token BAR
-/* %token BARBAR */
+%token BARBAR
 %token BEGIN
 %token CLOSURE
 %token COLON
@@ -103,7 +103,7 @@
 %nonassoc UNTIL WUNTIL RELEASE SRELEASE
 %nonassoc NOT
 %right SEMI COLON SEMISEMI COLONCOLON
-%left PLUS
+%left PLUS BARBAR
 %left AMPERAMPER
 %right below_STAR
 %right STAR
@@ -246,6 +246,7 @@ ident_type_list:
 | AND { "and" }
 | BANGEQUAL { "!=" }
 | BAR { "|" }
+| BARBAR { "||" }
 | COLON { ":" }
 | COLONCOLON { "::" }
 | EQUAL { "=" }

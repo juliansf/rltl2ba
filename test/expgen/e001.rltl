@@ -1,0 +1,2 @@
+let always (x:rltl) = x weak_until false in
+always.(a&b) and always.(b&a)

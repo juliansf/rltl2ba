@@ -43,6 +43,7 @@ let build_initial_env add_builtin empty_env =
     (* Regex opeators *)
     "*", newty (Tarrow (type_regex, type_regex));
     "+", mk_binop (type_regex, type_regex) type_regex;
+    "||", mk_binop (type_regex, type_regex) type_regex;
     "&&", mk_binop (type_regex, type_regex) type_regex;
     ".", mk_binop (type_regex, type_regex) type_regex;
     ";", poly_binop (type_regex, type_rltl) type_regex;

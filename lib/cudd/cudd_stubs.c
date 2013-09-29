@@ -72,16 +72,7 @@ void custom_bdd_finalize(value v)
 {
   node_t *node = Node_val(v);
 
-  //assert (Cudd_Regular(node->node)->ref >= 1);
-  
-  //printf("\ncudd_stubs.c: Node(%lx, %d, %d) will be deleted.\n", 
-  //	 (unsigned long)node, Cudd_Regular(node->node)->index,
-  //	 Cudd_Regular(node->node)->ref);
-  //printf("cudd_stubs.c: DdNode: %lx\n", (unsigned long)(node->node));
-
   Cudd_RecursiveDeref(node->manager->manager, node->node);
-  //DdNode *n = Cudd_Regular(_node);
-  //printf("cudd_stubs::n(%lx)->ref = %d\n", (unsigned long)n, n->ref);
   mlcuddManagerFree(node->manager);
 
   /*XXX DEBUG */
@@ -215,8 +206,6 @@ CAMLprim value caml_cudd_bdd_newvar(value mgr)
   bdd_t res;
   res.manager = Manager_val(mgr);
   res.node = Cudd_bddNewVar(res.manager->manager);
-
-  //printf("Cudd_bddNewVar\n");
   
   CAMLreturn (alloc_bdd(&res));
 }
@@ -230,8 +219,6 @@ CAMLprim value caml_cudd_bdd_newvar_at_level(value mgr, value level)
   res.manager = Manager_val(mgr);
   res.node = 
     Cudd_bddNewVarAtLevel(res.manager->manager, Int_val(level));
-
-  //printf("Cudd_bddNewVarAtLevel\n");
 
   CAMLreturn (alloc_bdd(&res));
 }
@@ -280,8 +267,6 @@ CAMLprim value caml_cudd_bdd_dnot(value node)
   
   res.node = Cudd_Not(_node->node);
   res.manager = _node->manager;
-
-  //printf("Cudd_Not\n");
   
   CAMLreturn (alloc_bdd(&res));
 }
@@ -294,8 +279,6 @@ CAMLprim value caml_cudd_bdd_dand(value n1, value n2)
   bdd_t res;
 
   mlcuddBinaryOper(Cudd_bddAnd, Node_val(n1), Node_val(n2), &res);
-  
-  //printf("Cudd_bddAnd\n");
 
   CAMLreturn (alloc_bdd(&res)); 
 }
@@ -307,8 +290,6 @@ CAMLprim value caml_cudd_bdd_dor(value n1, value n2)
   bdd_t res;
 
   mlcuddBinaryOper(Cudd_bddOr, Node_val(n1), Node_val(n2), &res);
-  
-  //printf("Cudd_bddOr\n");
 
   CAMLreturn (alloc_bdd(&res)); 
 }
@@ -340,8 +321,6 @@ CAMLprim value caml_cudd_bdd_restrict(value n1, value n2)
   bdd_t res;
 
   mlcuddBinaryOper(Cudd_bddRestrict, Node_val(n1), Node_val(n2), &res);
-  
-  //printf("Cudd_bddRestrict\n");
 
   CAMLreturn (alloc_bdd(&res)); 
 }
@@ -353,8 +332,6 @@ CAMLprim value caml_cudd_bdd_constrain(value n1, value n2)
   bdd_t res;
 
   mlcuddBinaryOper(Cudd_bddConstrain, Node_val(n1), Node_val(n2), &res);
-  
-  //printf("Cudd_bddConstrain\n");
 
   CAMLreturn (alloc_bdd(&res)); 
 }
@@ -440,7 +417,7 @@ CAMLprim value caml_cudd_bdd_cubes(value node)
   }
   size = _manager->size;
   
-  val_cube_list = Val_int(0); // Empty lis of cubes
+  val_cube_list = Val_int(0); // Empty list of cubes
 
   Cudd_ForeachCube(_manager,_node->node, gen, cube, val)
     {
@@ -468,6 +445,8 @@ CAMLprim value caml_cudd_bdd_cubes(value node)
   CAMLreturn(val_cube_list);
 }
 
+/* Doesn't work as expected */
+/*
 DdNode *bddComplementCube(DdManager *manager, int *cube, int size) {
   int i;
   DdNode *res, *node;
@@ -534,7 +513,7 @@ CAMLprim value caml_cudd_bdd_restricted_cubes(value node)
       }
     }
     
-    /* Save the cube into the list of cubes */
+    //Save the cube into the list of cubes
     val_cube_tmp = caml_alloc_small(2,0);
     Field(val_cube_tmp, 0) = val_cube;
     Field(val_cube_tmp, 1) = val_cube_list;
@@ -550,3 +529,4 @@ CAMLprim value caml_cudd_bdd_restricted_cubes(value node)
 
   CAMLreturn(val_cube_list);
 }
+*/

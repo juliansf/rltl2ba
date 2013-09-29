@@ -61,8 +61,8 @@ external iter_cube: (tbool array -> unit) -> node -> unit =
 external bdd_cubes: node -> tbool array list =
   "caml_cudd_bdd_cubes"
 
-external bdd_restricted_cubes: node -> tbool array list =
-  "caml_cudd_bdd_restricted_cubes"
+(*external bdd_restricted_cubes: node -> tbool array list =
+  "caml_cudd_bdd_restricted_cubes"*)
 
 let print_minterm print_id fmt bdd =
   let _print fmt bdd =
@@ -74,7 +74,7 @@ let print_minterm print_id fmt bdd =
     iter_cube
       (begin fun cube ->
 	if not !first then
-	  Format.fprintf fmt " \\/@ @[<hov>"
+	  Format.fprintf fmt " |@ @[<hov>"
 	else begin
 	  first := false;
 	  Format.fprintf fmt "@[<hov>"
@@ -85,11 +85,11 @@ let print_minterm print_id fmt bdd =
 	    match elt with
 	    | False ->
 	      if not !firstm then
-                Format.fprintf fmt " /\\ @," else firstm := false;
+                Format.fprintf fmt " & @," else firstm := false;
 	      Format.fprintf fmt "!%a" print_id i
 	    | True ->
 	      if not !firstm then
-                Format.fprintf fmt " /\\ @," else firstm := false;
+                Format.fprintf fmt " & @," else firstm := false;
 	      Format.fprintf fmt "%a" print_id i
 	    | Top -> ()
 	   end)
@@ -107,7 +107,7 @@ let fold_minterm (_true: 'a) (_false: 'a) (_var: int -> 'a) (_not: 'a -> 'a)
   if is_true bdd then _true
   else if is_false bdd then _false
   else begin
-    let cubes = bdd_restricted_cubes bdd in
+    let cubes = bdd_cubes bdd in
 
     (* Set the vars *)
     let mapvar i = function
@@ -122,3 +122,32 @@ let fold_minterm (_true: 'a) (_false: 'a) (_var: int -> 'a) (_not: 'a -> 'a)
     in
     List.fold_left f_or _false (List.rev cubes)
   end
+
+let bdd_print_wff varmap fmt bdd =
+  let bdd2boolean bdd =
+    let _var i = `V (varmap i) in
+    let _not b = `N b in
+    let _and a b = match a,b with
+      | `F,_ | _,`F -> `F
+      | `T,x | x,`T -> x
+      | x,y -> `A (x,y)
+    in
+    let _or a b = match a,b with
+      | `T,_ | _,`T -> `T
+      | `F,x | x,`F -> x
+      | x,y -> `O (x,y)
+    in
+    fold_minterm `T `F _var _not _and _or bdd in
+
+  let print_boolean fmt b =
+    let rec print_b fmt = function
+      | `T -> Format.fprintf fmt "true"
+      | `F -> Format.fprintf fmt "false"
+      | `V s -> Format.fprintf fmt "%s" s
+      | `N x -> Format.fprintf fmt "!%a" print_b x
+      | `A (a,b) -> Format.fprintf fmt "%a & %a" print_b a print_b b
+      | `O (a,b) -> Format.fprintf fmt "%a | %a" print_b a print_b b
+    in
+    Format.fprintf fmt "@[%a@]" print_b b
+  in
+  print_boolean fmt (bdd2boolean bdd)

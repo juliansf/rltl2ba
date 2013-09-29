@@ -2,6 +2,7 @@
 open Entry
 open Typedtree
 open Location
+open Rltl
 
 type entry = Entry.t
 
@@ -37,7 +38,8 @@ let rec free_vars exp =
   in
   fvars exp;
   let fl = Hashtbl.fold (fun x n fl -> (x,!n)::fl) free [] in
-  List.fast_sort (fun (_,n1) (_,n2) -> n2-n1) fl
+  List.fast_sort (fun (s1,n1) (s2,n2) ->
+    if n1=n2 then compare s1 s2 else n2-n1) fl
 
 
 and trans_var var =
@@ -145,7 +147,7 @@ let expression expected_type typed_exp =
 
   (* Compute free vars (the alphabet) *)
   let fv = free_vars typed_exp in
-  (* List.iter (fun (x,n) -> Format.printf "(%s,%d) " x n) fv;*)
+  (*XXX List.iter (fun (x,n) -> Format.printf "(%s,%d) " x n) fv;*)
 
   (* Add the free vars to the environment of references *)
   List.iter (fun (v,_) ->
@@ -162,5 +164,19 @@ let expression expected_type typed_exp =
 
 
 let print_expr ppf (mgr, node) =
-  Expgen.print_manager ppf mgr;
-  Format.fprintf ppf "\n# Result: %d\n" (Expgen.node_id node)
+  Rltl.Expgen.print_manager ppf mgr;
+  Format.fprintf ppf "\n# Result: %d\n" (Rltl.Expgen.node_id node)
+
+let automata (mgr,node) =
+  let autmgr = Automata.init mgr in
+  let nfa = Automata.get_nfa autmgr node in
+  autmgr,nfa
+
+let print_automata fmt (mgr,nfa) =
+  (*Automata.print_manager fmt mgr;*)
+  if !Clflags.dot then
+    Format.fprintf fmt "/* NFA: */@\n%a"
+      (Automata.nfa2dot mgr) nfa
+  else
+    Format.fprintf fmt "-- NFA:@\n%a"
+      (Automata.print_nfa mgr) nfa

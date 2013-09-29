@@ -124,7 +124,7 @@ rule token = parse
 | "&"   { AMPERSAND }
 | "|"   { BAR }
 | "&&"  { AMPERAMPER }
-(* | "||"  { BARBAR } *)
+| "||"  { BARBAR }
 | "*"   { STAR }
 | "+"   { PLUS }
 

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: fe555089d1a35166a43ebb9fc405540a)
+# DO NOT EDIT (digest: d0b9028e8ed20ac5a937346d4b8da56a)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -37,10 +37,14 @@
 "src/rltl/rltl.cmxs": use_rltl
 <src/rltl/rltl.{cma,cmxa}>: oasis_library_rltl_byte
 <src/rltl/*.ml{,i}>: oasis_library_rltl_byte
+<src/rltl/automata/*.ml{,i}>: oasis_library_rltl_byte
 <src/rltl/rltl.{cma,cmxa}>: oasis_library_rltl_native
 <src/rltl/*.ml{,i}>: oasis_library_rltl_native
+<src/rltl/automata/*.ml{,i}>: oasis_library_rltl_native
 <src/rltl/*.ml{,i}>: use_cudd
 <src/rltl/*.ml{,i}>: use_utils
+<src/rltl/automata/*.ml{,i}>: use_cudd
+<src/rltl/automata/*.ml{,i}>: use_utils
 # Library parsing
 "src/parsing/parsing.cmxs": use_parsing
 <src/parsing/parsing.{cma,cmxa}>: oasis_library_parsing_byte

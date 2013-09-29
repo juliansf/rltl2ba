@@ -10,13 +10,6 @@ exception Node_type_clash of node
 exception Non_overlapping_node of node
 exception Node_already_overlapped of node
 
-(* Base expression - invalid node *)
-let base =
-  { exp_bool = None;
-    exp_regex = None;
-    exp_rltl = None;
-  }
-
 (* Build a new expression *)
 let _bool x = { base with exp_bool=Some x }
 let _regex x = { base with exp_regex=Some x }
@@ -46,6 +39,7 @@ let init () =
 let const_false = 0
 let const_true = 1
 
+(* Auxiliary functions *)
 let getexp mgr node =
   try Manager.lookup mgr node
   with Not_found -> raise (Undefined_node node)
@@ -86,6 +80,10 @@ let is_rltl mgr node =
   | Some _ -> true
   | None -> false
 
+let make_idempotent_commutative f x y =
+  if x = y then x
+  else if x < y then f x y else f y x
+
 (* New variable with labeling *)
 let new_var mgr s =
   Manager.add mgr (_bool (BoolIdent s))
@@ -93,29 +91,47 @@ let new_var mgr s =
 (* Boolean Expressions *)
 let bool_not mgr node =
   make_bool mgr node;
-  Manager.add mgr (_bool (BoolNot node))
+  if node = const_false then const_true
+  else if node = const_true then const_false
+  else Manager.add mgr (_bool (BoolNot node))
 
 let bool_and mgr n1 n2 =
   make_bool mgr n1;
   make_bool mgr n2;
-  Manager.add mgr (_bool (BoolAnd (n1,n2)))
+  let f x y =
+    if x = const_false || y = const_false then const_false
+    else if x = const_true then y
+    else if y = const_true then x
+    else Manager.add mgr (_bool (BoolAnd(x,y))) in
+  make_idempotent_commutative f n1 n2
 
 let bool_or mgr n1 n2 =
   make_bool mgr n1;
   make_bool mgr n2;
-  Manager.add mgr (_bool (BoolOr (n1,n2)))
+  let f x y =
+    if x = const_true || y = const_true then const_true
+    else if x = const_false then y
+    else if y = const_false then x
+    else Manager.add mgr (_bool (BoolOr (x,y))) in
+  make_idempotent_commutative f n1 n2
 
 let bool_impl mgr n1 n2 =
-  let not_n1 = bool_not mgr n1 in
-  make_bool mgr n2;
-  bool_or mgr not_n1 n2
+  if n1 = const_false || n1 = n2 then const_true
+  else begin
+    let not_n1 = bool_not mgr n1 in
+    make_bool mgr n2;
+    bool_or mgr not_n1 n2
+  end
 
 let bool_iff mgr n1 n2 =
-  let not_n1 = bool_not mgr n1 in
-  let not_n2 = bool_not mgr n2 in
-  let n1_and_n2 = bool_and mgr n1 n2 in
-  let not_n1_and_not_n2 = bool_and mgr not_n1 not_n2 in
-  bool_or mgr n1_and_n2 not_n1_and_not_n2
+  if n1 = n2 then const_true
+  else begin
+    let not_n1 = bool_not mgr n1 in
+    let not_n2 = bool_not mgr n2 in
+    let n1_and_n2 = bool_and mgr n1 n2 in
+    let not_n1_and_not_n2 = bool_and mgr not_n1 not_n2 in
+    bool_or mgr n1_and_n2 not_n1_and_not_n2
+  end
 
 (* Regex Expressions *)
 let regex_star mgr node =
@@ -125,12 +141,30 @@ let regex_star mgr node =
 let regex_plus mgr n1 n2 =
   make_regex mgr n1;
   make_regex mgr n2;
-  Manager.add mgr (_regex (RegexPlus (n1, n2)))
+  let f x y =
+    if is_bool mgr x && is_bool mgr y
+    then begin
+      let b = bool_or mgr x y in
+      make_regex mgr b;
+      b
+    end
+    else
+      Manager.add mgr (_regex (RegexPlus (x, y))) in
+  make_idempotent_commutative f n1 n2
 
 let regex_cap mgr n1 n2 =
   make_regex mgr n1;
   make_regex mgr n2;
-  Manager.add mgr (_regex (RegexCap (n1, n2)))
+  let f x y =
+    if is_bool mgr x && is_bool mgr y
+    then begin
+      let b = bool_and mgr x y in
+      make_regex mgr b;
+      b
+    end
+    else
+      Manager.add mgr (_regex (RegexCap (x, y))) in
+  make_idempotent_commutative f n1 n2
 
 let regex_concat mgr ofl n1 n2 =
   make_regex mgr n1;
@@ -145,12 +179,14 @@ let rltl_not mgr node =
 let rltl_or mgr n1 n2 =
   make_rltl mgr n1;
   make_rltl mgr n2;
-  Manager.add mgr (_rltl (RltlOr (n1, n2)))
+  let f x y = Manager.add mgr (_rltl (RltlOr (x, y))) in
+  make_idempotent_commutative f n1 n2
 
 let rltl_and mgr n1 n2 =
   make_rltl mgr n1;
   make_rltl mgr n2;
-  Manager.add mgr (_rltl (RltlAnd (n1, n2)))
+  let f x y = Manager.add mgr (_rltl (RltlAnd (x, y))) in
+  make_idempotent_commutative f n1 n2
 
 let rltl_impl mgr n1 n2 =
   let not_n1 = rltl_not mgr n1 in

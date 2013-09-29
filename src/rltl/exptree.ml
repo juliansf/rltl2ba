@@ -37,5 +37,27 @@ and rltl_expr =
 
 
 (* Auxiliary functions *)
-val equal_expr: expression -> expression -> bool
-val base: expression (* invalid node *)
+(* Base expression - invalid node *)
+let base =
+  { exp_bool = None;
+    exp_regex = None;
+    exp_rltl = None;
+  }
+
+let equal_expr x y =
+  match x.exp_bool, y.exp_bool with
+  | Some x, Some y -> x=y
+  | None, None ->
+    begin
+      match x.exp_regex, y.exp_regex with
+      | Some x, Some y -> x=y
+      | None, None ->
+        begin
+          match x.exp_rltl, y.exp_rltl with
+          | Some x, Some y when x=y -> true
+          | None, None -> true
+          | _ -> false
+        end
+      | _ -> false
+    end
+  | _ -> false

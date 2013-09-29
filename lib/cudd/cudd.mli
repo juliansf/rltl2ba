@@ -58,8 +58,8 @@ external iter_cube: (tbool array -> unit) -> node -> unit =
 external bdd_cubes: node -> tbool array list =
   "caml_cudd_bdd_cubes"
 
-external bdd_restricted_cubes: node -> tbool array list =
-  "caml_cudd_bdd_restricted_cubes"
+(*external bdd_restricted_cubes: node -> tbool array list =
+  "caml_cudd_bdd_restricted_cubes"*)
 
 val print_minterm
   : (Format.formatter -> int -> unit) -> Format.formatter -> node -> unit
@@ -67,3 +67,5 @@ val print_minterm
 val fold_minterm:
   'a -> 'a -> (int -> 'a) -> ('a -> 'a) ->
   ('a -> 'a -> 'a) -> ('a -> 'a -> 'a) -> node -> 'a
+
+val bdd_print_wff: (int -> string) -> Format.formatter -> node -> unit

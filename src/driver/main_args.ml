@@ -14,9 +14,19 @@ let mk_dparsetree f =
   " Dump the parse tree of the parsed expression"
 ;;
 
+let mk_dot f =
+  "-dot", Arg.Unit f,
+  "Output the generated automata in DOT format."
+;;
+
 let mk_i f =
   "-i", Arg.String f,
   "<file>  Treat <file> as a file name (even if it starts with `-')"
+;;
+
+let mk_nfa f =
+  "-nfa", Arg.Unit f,
+  " Output the generated NFA automata of the parsed regular expression."
 ;;
 
 let mk_o f =
@@ -41,7 +51,9 @@ module type Rltlba_options = sig
   val _annot : unit -> unit
   val _dintcode : unit -> unit
   val _dparsetree : unit -> unit
+  val _dot : unit -> unit
   val _i : string -> unit
+  val _nfa : unit -> unit
   val _o : string -> unit
   val _s : string -> unit
 (*  val _stdin : unit -> unit *)
@@ -59,7 +71,9 @@ struct
     mk_annot F._annot;
     mk_dintcode F._dintcode;
     mk_dparsetree F._dparsetree;
+    mk_dot F._dot;
     mk_i F._i;
+    mk_nfa F._nfa;
     mk_o F._o;
     mk_s F._s;
 (*    mk_stdin F._stdin; *)

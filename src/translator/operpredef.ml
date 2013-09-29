@@ -1,3 +1,4 @@
+open Rltl
 open Entry
 
 let build_initial_env add_builtin mgr =
@@ -27,6 +28,11 @@ let build_initial_env add_builtin mgr =
     "+",
     FunEntry (fun x -> FunEntry (fun y ->
       ValEntry (Expgen.regex_plus mgr (val_entry x) (val_entry y))));
+
+    "||",
+    FunEntry (fun x -> FunEntry (fun y ->
+      ValEntry (Expgen.regex_plus mgr (val_entry x) (val_entry y))));
+
     "&&",
     FunEntry (fun x -> FunEntry (fun y ->
       ValEntry (Expgen.regex_cap mgr (val_entry x) (val_entry y))));
