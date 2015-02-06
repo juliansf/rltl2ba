@@ -1,0 +1,33 @@
+/* ABW: */
+digraph {
+ 
+ rank = same;
+ fontsize = 10;
+ arrowType=open;
+ 
+ node_18 [shape=plaintext label="start"]; node_18 -> 18;
+ 18 [shape=circle color=red fixedsize=true];
+ 18 -> 7 [label=" [r &and; x &and; y] "];
+ conj_18_0 [shape=point];
+ 18 -> conj_18_0 [label=" [r &and; x &and; y]" dir=none];
+ conj_18_0 -> 18
+conj_18_0 -> 20
+conj_18_1 [shape=point];
+ 18 -> conj_18_1 [label=" [r &and; !x &and; y]" dir=none];
+ conj_18_1 -> 18
+conj_18_1 -> 20
+true_18 [shape=plaintext label=""];
+ 18 -> true_18 [label=" [!r &and; y] " arrowhead=dot];
+ 7 [shape=circle color=red fixedsize=true];
+ true_7 [shape=plaintext label=""];
+ 7 -> true_7 [label=" [z] " arrowhead=dot];
+ 20 [shape=circle color=gray fixedsize=true];
+ conj_20_0 [shape=point];
+ 20 -> conj_20_0 [label=" [s]" dir=none];
+ conj_20_0 -> 18
+conj_20_0 -> 20
+true_20 [shape=plaintext label=""];
+ 20 -> true_20 [label=" [!s] " arrowhead=dot];
+ 
+}
+

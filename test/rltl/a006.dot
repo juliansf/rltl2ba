@@ -1,0 +1,18 @@
+/* ABW: */
+digraph {
+ 
+ rank = same;
+ fontsize = 10;
+ arrowType=open;
+ 
+ node_8 [shape=plaintext label="start"]; node_8 -> 8;
+ 8 [shape=circle color=gray fixedsize=true];
+ 8 -> 9 [label=" [r] "];
+ true_8 [shape=plaintext label=""];
+ 8 -> true_8 [label=" [!r] " arrowhead=dot];
+ 9 [shape=circle color=gray fixedsize=true];
+ true_9 [shape=plaintext label=""];
+ 9 -> true_9 [label=" [x] " arrowhead=dot];
+ 
+}
+

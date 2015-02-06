@@ -1,0 +1,29 @@
+/* ABW: */
+digraph {
+ 
+ rank = same;
+ fontsize = 10;
+ arrowType=open;
+ 
+ node_16 [shape=plaintext label="start"]; node_16 -> 16;
+ 16 [shape=circle color=red fixedsize=true];
+ 16 -> 17 [label=" [d &and; a] "];
+ 17 [shape=circle color=red fixedsize=true];
+ true_17 [shape=plaintext label=""];
+ 17 -> true_17 [label=" [f &and; e &and; b &and; y &and; x] " arrowhead=dot];
+ 17 -> 18 [label=" [f &and; e &and; b &and; y &and; !x] "];
+ 17 -> 18 [label=" [f &and; e &and; b &and; !y] "];
+ true_17 [shape=plaintext label=""];
+ 17 -> true_17 [label=" [f &and; !e &and; b &and; y &and; x] " arrowhead=dot];
+ 17 -> 18 [label=" [!f &and; e &and; b] "];
+ 18 [shape=circle color=red fixedsize=true];
+ true_18 [shape=plaintext label=""];
+ 18 -> true_18 [label=" [f &and; e &and; c &and; y &and; x] " arrowhead=dot];
+ 18 -> 18 [label=" [f &and; e &and; c &and; y &and; !x] "];
+ 18 -> 18 [label=" [f &and; e &and; c &and; !y] "];
+ true_18 [shape=plaintext label=""];
+ 18 -> true_18 [label=" [f &and; !e &and; c &and; y &and; x] " arrowhead=dot];
+ 18 -> 18 [label=" [!f &and; e &and; c] "];
+ 
+}
+
