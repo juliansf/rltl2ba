@@ -1,14 +1,16 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 80687b4c9641b7bdf39a8cb1975f89d3) *)
+(* DO NOT EDIT (digest: 010540e0da55e9af5573f00944d4a00c) *)
+
 This is the INSTALL file for the rltl2ba distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
-full information. 
+full information.
 
 Dependencies
 ============
 
 In order to compile this package, you will need:
+
 * ocaml (>= 3.12.0) for all, test syntax, doc api-rltl
 * findlib (>= 1.2.6)
 * make for all, test syntax, doc api-rltl
@@ -27,7 +29,7 @@ Installing
 Uninstalling
 ============
 
-1. Go to the root of the package 
+1. Go to the root of the package
 2. Run 'ocaml setup.ml -uninstall'
 
 OASIS

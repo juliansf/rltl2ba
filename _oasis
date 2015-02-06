@@ -4,7 +4,7 @@ FindlibVersion: >= 1.2.6
 Name:         rltl2ba
 Version:      0.1.0
 LicenseFile:  LICENSE
-License:      BSD3
+License:      BSD-3-clause
 BuildType:    ocamlbuild (0.3)
 Authors:      Julian Samborski-Forlese, Cesar Sanchez
 Maintainers:  Julian Samborski-Forlese <julian.sf@imdea.org>
