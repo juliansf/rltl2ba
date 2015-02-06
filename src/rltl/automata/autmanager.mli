@@ -1,30 +1,24 @@
 open Exptree
 
-(*
-type t =
-  {
-    mutable aut_bddmgr: Bdd.manager;
-    aut_label: (Node.t, bool_expr * Bdd.t option ref) Hashtbl.t;
-    aut_nfa: (Node.t, regex_expr * Nfa.t option ref) Hashtbl.t;
-    aut_abw: (Node.t, rltl_expr * Abw.t option ref) Hashtbl.t;
-  }
-
-val init: Manager.t -> t
-*)
-
 type t =
   {
     mutable aut_size: int;
     aut_bddmgr: Bdd.manager;
     aut_expmgr: Manager.t;
-    aut_label: (Node.t, Bdd.t) Hashtbl.t;
-    aut_nfa: (Node.t, Nfa.t) Hashtbl.t;
-    aut_abw: (Node.t, Abw.t) Hashtbl.t;
+    aut_ahwmgr: Ahw.Make(Nfa.Make(Bool.Default.B)).manager;
+    aut_label: (Node.t, Bool.Default.B.t) Hashtbl.t;
+    aut_nfa: (Node.t, Nfa.Make(Bool.Default.B).t) Hashtbl.t;
+    aut_ahw: (Node.t, Ahw.Make(Nfa.Make(Bool.Default.B)).t) Hashtbl.t;
   }
 
-type label = Bdd.t
-type nfa = Nfa.t
+type label = Bool.Default.B.t
+type nfa = Nfa.Make(Bool.Default.B).t
+type ahw = Ahw.Make(Nfa.Make(Bool.Default.B)).t
+type automata =
+| Ahw of ahw
+| Nfa of nfa
 
 val init : Manager.t -> t
-val get_label : t -> Node.t -> Bdd.t
-val get_nfa : t -> Node.t -> Nfa.t
+val get_label : t -> Node.t -> Bool.Default.B.t
+val get_nfa : t -> Node.t -> Nfa.Make(Bool.Default.B).t
+val get_ahw : ?simpl:bool -> t -> Node.t -> Ahw.Make(Nfa.Make(Bool.Default.B)).t

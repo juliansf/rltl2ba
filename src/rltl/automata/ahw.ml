@@ -9,10 +9,13 @@ module type S = sig
   type state = int
   type trans = Nfa.Label.t
 
+  type strata = SAccept | SReject | SBuchi | SCoBuchi
+
   type manager =
     { ahw_bddmgr: Bdd.manager;
       ahw_delta: (state, trans) Hashtbl.t;
       ahw_color: (state, int) Hashtbl.t;
+      (*ahw_strata: (int, strata) Hashtbl.t;*)
       ahw_false: state;
       ahw_true: state;
     }
@@ -71,6 +74,8 @@ struct
 
   type state = int
   type trans = Label.t
+
+  type strata = SAccept | SReject | SBuchi | SCoBuchi
 
   type manager =
     { ahw_bddmgr: Bdd.manager;

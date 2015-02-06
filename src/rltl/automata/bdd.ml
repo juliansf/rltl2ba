@@ -66,9 +66,18 @@ let trans_bool mgr bddmgr node =
   in
   tr_bool node
 *)
+
+
 let indexed_vars mgr =
   let vars = Array.make (Hashtbl.length mgr.bdd_vars) "" in
   Hashtbl.iter (fun s n -> vars.(Cudd.index n) <- s) mgr.bdd_vars;
+  vars
+
+let hashed_vars mgr =
+  let vars = Hashtbl.create (Hashtbl.length mgr.bdd_vars) in
+  Hashtbl.iter (fun s n ->
+    Hashtbl.add vars (Cudd.index n) s
+  ) mgr.bdd_vars;
   vars
 
 let manager_apply f mgr = Hashtbl.iter f mgr.bdd_tbl

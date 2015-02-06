@@ -64,6 +64,16 @@ CAMLprim value caml_cudd_manager_make(value unit)
   CAMLreturn (alloc_manager(manager));
 }
 
+CAMLprim value caml_cudd_manager_size(value mgr)
+{
+  CAMLparam1 (mgr);
+  
+  manager_t *manager  = Manager_val(mgr);
+  int size = manager->manager->size;
+
+  CAMLreturn (Val_int (size));
+}
+
 
 /** BDD nodes **/
 

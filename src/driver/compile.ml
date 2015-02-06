@@ -41,6 +41,7 @@ let expression_file expected_type ppf sourcefile =
   Location.input_name := sourcefile;
   let outfmt = get_outfmt ppf in
   let tyenv = Typeenv.initial in
+  let printaut = ref (!Clflags.nfa || !Clflags.ahw) in
   try
     _file ppf Parse.expression sourcefile
     ++ print_if ppf Clflags.dump_parsetree Printast.print_expr
@@ -50,25 +51,26 @@ let expression_file expected_type ppf sourcefile =
     ++ Translate.expression expected_type
     ++ print_if ppf Clflags.dump_intcode Translate.print_expr
     ++ Translate.automata
-    ++ print_if outfmt Clflags.nfa Translate.print_automata
+    ++ print_if outfmt printaut Translate.print_automata
     ++ (fun _ -> ())
   with e ->
     raise e
 
-let expression_string ppf str =
+let expression_string expected_type ppf str =
   Location.input_name := "(string)";
   let outfmt = get_outfmt ppf in
   let tyenv = Typeenv.initial in
+  let printaut = ref (!Clflags.nfa || !Clflags.ahw) in
   try
     _string ppf Parse.expression str
     ++ print_if ppf Clflags.dump_parsetree Printast.print_expr
     ++ Typecheck.expression tyenv
     ++ print_if ppf Clflags.annot
       (fun ppf exp -> Printtyp.print_type ppf exp.Typedtree.texp_type)
-    ++ Translate.expression Predef.type_rltl
+    ++ Translate.expression expected_type
     ++ print_if ppf Clflags.dump_intcode Translate.print_expr
     ++ Translate.automata
-    ++ print_if outfmt Clflags.nfa Translate.print_automata
+    ++ print_if outfmt printaut Translate.print_automata
     ++ (fun _ -> ())
   with e ->
     raise e

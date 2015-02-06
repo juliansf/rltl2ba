@@ -102,9 +102,9 @@
 /*%nonassoc below_UNTIL*/
 %nonassoc UNTIL WUNTIL RELEASE SRELEASE
 %nonassoc NOT
-%right SEMI COLON SEMISEMI COLONCOLON
 %left PLUS BARBAR
 %left AMPERAMPER
+%right SEMI COLON SEMISEMI COLONCOLON
 %right below_STAR
 %right STAR
 %right MINUSGREATER
@@ -113,6 +113,7 @@
 %left AMPERSAND
 /*%nonassoc below_EQUAL*/
 %left EQUAL BANGEQUAL
+%left above_EQUAL
 
 %nonassoc BANG BEGIN DOT FALSE IDENT LB LP TRUE
 
@@ -154,7 +155,7 @@ expr:
 | prefix_oper error
     { expected "(" $startpos($2) $endpos($2) }
 
-| f=expr DOT LP args=expr_comma_list RP
+| f=expr LP args=expr_comma_list RP
     { mkexp (Pexp_apply (f, args)) $startpos $endpos }
 ;
 
@@ -185,8 +186,10 @@ simple_expr:
       mkexp (Pexp_apply (mkoper "*" $startpos($2) $endpos($2), [e]))
         $startpos $endpos
     }
-| l=simple_expr r=simple_expr %prec below_STAR
-    { ghexp (Pexp_apply (mkoper "." $startpos $endpos, [l;r])) $startpos $endpos }
+/*| l=simple_expr r=simple_expr %prec above_EQUAL
+    { ghexp (Pexp_apply (mkoper "." $startpos $endpos, [l;r])) $startpos $endpos } */
+/*| l=simple_expr r=simple_expr %prec above_EQUAL
+    { mkexp (Pexp_apply (l, r)) $startpos $endpos }*/
 ;
 
 /*

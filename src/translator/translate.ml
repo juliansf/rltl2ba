@@ -155,8 +155,13 @@ let expression expected_type typed_exp =
       Hashtbl.add renv v (ValEntry (Expgen.new_var manager v))) fv;
 
   (* Translate Expression *)
-  let entry = trans_expr manager renv typed_exp in
-
+  let entry =
+    try
+      trans_expr manager renv typed_exp
+    with e ->
+      Rltl.Expgen.print_manager Format.err_formatter manager;
+      raise e
+  in
   (* Return the manager and the computed node *)
   manager, match entry with
   | ValEntry v -> v
@@ -169,14 +174,34 @@ let print_expr ppf (mgr, node) =
 
 let automata (mgr,node) =
   let autmgr = Automata.init mgr in
-  let nfa = Automata.get_nfa autmgr node in
-  autmgr,nfa
+  let automata =
+    if !Clflags.nfa then
+      Automata.Nfa (Automata.get_nfa autmgr node)
+    else if !Clflags.ahw then
+      Automata.Ahw (Automata.get_ahw autmgr node ~simpl:false)
+    else
+      Automata.Ahw (Automata.get_ahw autmgr node ~simpl:false)
+  in
+  autmgr,automata
 
-let print_automata fmt (mgr,nfa) =
+let print_automata fmt (mgr,automata) =
   (*Automata.print_manager fmt mgr;*)
-  if !Clflags.dot then
-    Format.fprintf fmt "/* NFA: */@\n%a"
-      (Automata.nfa2dot mgr) nfa
-  else
-    Format.fprintf fmt "-- NFA:@\n%a"
-      (Automata.print_nfa mgr) nfa
+  match automata with
+  | Automata.Nfa nfa ->
+    begin
+      if !Clflags.dot then
+        Format.fprintf fmt "/* NFA: */@\n%a"
+          (Automata.nfa2dot mgr) nfa
+      else
+        Format.fprintf fmt "-- NFA:@\n%a"
+          (Automata.print_nfa mgr) nfa
+    end
+  | Automata.Ahw ahw ->
+    begin
+      if !Clflags.dot then
+        Format.fprintf fmt "/* AHW: */@\n%a"
+          (Automata.ahw2dot mgr) ahw
+      else
+        Format.fprintf fmt "-- AHW:@\n%a"
+          (Automata.print_ahw mgr) ahw
+    end

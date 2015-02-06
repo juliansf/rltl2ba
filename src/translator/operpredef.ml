@@ -47,20 +47,20 @@ let build_initial_env add_builtin mgr =
       let sfl = Expgen.existential() in
       let ofl = Expgen.overlap false in
       let ynode = val_entry y in
-      if Expgen.is_rltl mgr ynode then
-        ValEntry (Expgen.rltl_seq mgr sfl ofl (val_entry x) ynode)
+      if Expgen.is_regex mgr ynode || Expgen.is_bool mgr ynode then
+        ValEntry (Expgen.regex_concat mgr ofl (val_entry x) ynode)
       else
-        ValEntry (Expgen.regex_concat mgr ofl (val_entry x) ynode)));
+        ValEntry (Expgen.rltl_seq mgr sfl ofl (val_entry x) ynode)));
 
     ":",
     FunEntry (fun x -> FunEntry (fun y ->
       let sfl = Expgen.existential() in
       let ofl = Expgen.overlap true in
       let ynode = val_entry y in
-      if Expgen.is_rltl mgr ynode then
-        ValEntry (Expgen.rltl_seq mgr sfl ofl (val_entry x) ynode)
+      if Expgen.is_regex mgr ynode || Expgen.is_bool mgr ynode then
+        ValEntry (Expgen.regex_concat mgr ofl (val_entry x) ynode)
       else
-        ValEntry (Expgen.regex_concat mgr ofl (val_entry x) ynode)));
+        ValEntry (Expgen.rltl_seq mgr sfl ofl (val_entry x) ynode)));
 
 
     "not",

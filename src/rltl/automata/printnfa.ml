@@ -1,15 +1,22 @@
+module Nfa = Nfa.Make(Bool.Default.B)
 open Nfa
 
 type desc =
   { header: Format.formatter -> unit -> unit;
     footer: Format.formatter -> unit -> unit;
     state: Format.formatter -> int * bool * bool -> unit;
-    arrow: Format.formatter -> int * (Bdd.t * int) -> unit;
+    arrow: Format.formatter -> int * (Nfa.label * int) -> unit;
   }
 
 type info = { size : int }
 
 let print_nfa print_label fmt nfa =
+  let nfa =
+    if nfa = Nfa.nfa_false then
+      { nfa_delta=[|[]|]; nfa_start=0; nfa_final=[|false|]; }
+    else
+      nfa
+  in
   let n = size nfa in
   let rec print_delta fmt delta =
     match delta with
@@ -73,6 +80,12 @@ let dot_desc label info =
 
 
 let fprintf desc fmt nfa =
+  let nfa =
+    if nfa = Nfa.nfa_false then
+      {nfa_delta=[|[]|]; nfa_start=0; nfa_final=[|false|]}
+    else
+      nfa
+  in
   let n = size nfa in
   let desc = desc {size=n} in
   desc.header fmt ();
@@ -86,29 +99,3 @@ let fprintf desc fmt nfa =
     ) nfa.nfa_delta.(i)
   done;
   desc.footer fmt ()
-
-
-(*
- digraph {
-
-  rankdir = LR;
-  fontsize =10;
-
-  /* States */
-  node_Q1 [shape=plaintext label=""]; node_Q1 -> Q1;
-
-  /* Q0 = ({},{},{},true) */
-  Q0 [shape=doublecircle color=green fixedsize=true];
-
-  /* Q1 = ({q10},{q10},{q10->2},false) */
-  Q1 [shape=circle color=red fixedsize=true];
-
-
-  /* Transitions */
-  Q0 -> Q0 [label="p1"];
-  Q0 -> Q0 [label="p0"];
-  Q1 -> Q0 [label="p1"];
-  Q1 -> Q1 [label="p0"];
-
-}
-*)

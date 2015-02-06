@@ -65,13 +65,20 @@ module Automata : sig
   type t
   type label
   type nfa
+  type ahw
+  type automata =
+  | Ahw of ahw
+  | Nfa of nfa
 
   val init: Expgen.manager -> t
   val get_label: t -> Expgen.node -> label
   val get_nfa: t -> Expgen.node -> nfa
+  val get_ahw: ?simpl:bool -> t -> Expgen.node -> ahw
 
   (* Pretty printers *)
   val print_manager: Format.formatter -> t -> unit
   val print_nfa: t -> Format.formatter -> nfa -> unit
   val nfa2dot: t -> Format.formatter -> nfa -> unit
+  val print_ahw: t -> Format.formatter -> ahw -> unit
+  val ahw2dot: t -> Format.formatter -> ahw -> unit
 end

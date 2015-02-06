@@ -98,9 +98,9 @@
 %%
 
 /* Rules for entry points */
-
 expression:
-  MODULE ident vars_decl PSLSPEC e=psl_expr option(SEMI) EOF { e }
+| e = psl_expr option(SEMI) EOF { e }
+| MODULE ident vars_decl PSLSPEC e=psl_expr option(SEMI) EOF { e }
 ;
 
 var_decl:

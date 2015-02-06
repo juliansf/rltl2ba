@@ -44,6 +44,23 @@ let getexp mgr node =
   try Manager.lookup mgr node
   with Not_found -> raise (Undefined_node node)
 
+(* Node type tests *)
+let is_bool mgr node =
+  match (getexp mgr node).exp_bool with
+  | Some _ -> true
+  | None -> false
+
+let is_regex mgr node =
+  match (getexp mgr node).exp_regex with
+  | Some _ -> true
+  | None -> false
+
+let is_rltl mgr node =
+  match (getexp mgr node).exp_rltl with
+  | Some _ -> true
+  | None -> false
+
+(* Node type cast *)
 let make_bool mgr node =
   let exp = getexp mgr node in
   match exp.exp_bool with
@@ -61,24 +78,13 @@ let make_rltl mgr node =
   let exp = getexp mgr node in
   match exp.exp_rltl with
   | Some _ -> ()
-  | None -> make_regex mgr node;
-    exp.exp_rltl <- Some(RltlSeq(Existential, WithoutOverlap, node, const_true))
-
-(* Node type tests *)
-let is_bool mgr node =
-  match (getexp mgr node).exp_bool with
-  | Some _ -> true
-  | None -> false
-
-let is_regex mgr node =
-  match (getexp mgr node).exp_regex with
-  | Some _ -> true
-  | None -> false
-
-let is_rltl mgr node =
-  match (getexp mgr node).exp_rltl with
-  | Some _ -> true
-  | None -> false
+  | None ->
+    make_regex mgr node;
+    exp.exp_rltl <-
+      match exp.exp_regex with
+      | Some (RegexProp n) -> Some (RltlProp n)
+      | _ ->
+        Some(RltlSeq(Existential, WithoutOverlap, node, const_true))
 
 let make_idempotent_commutative f x y =
   if x = y then x
@@ -194,11 +200,14 @@ let rltl_impl mgr n1 n2 =
   rltl_or mgr not_n1 n2
 
 let rltl_iff mgr n1 n2 =
-  let not_n1 = rltl_not mgr n1 in
-  let not_n2 = rltl_not mgr n1 in
-  let n1_and_n2 = rltl_and mgr n1 n2 in
-  let not_n1_and_not_n2 = rltl_and mgr not_n1 not_n2 in
-  rltl_or mgr n1_and_n2 not_n1_and_not_n2
+  if n1 = n2 then const_true
+  else begin
+    let not_n1 = rltl_not mgr n1 in
+    let not_n2 = rltl_not mgr n2 in
+    let n1_and_n2 = rltl_and mgr n1 n2 in
+    let not_n1_and_not_n2 = rltl_and mgr not_n1 not_n2 in
+    rltl_or mgr n1_and_n2 not_n1_and_not_n2
+  end
 
 let rltl_seq mgr sfl ofl r x =
   make_regex mgr r;

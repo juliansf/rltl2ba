@@ -7,6 +7,6 @@ val expression
 
 val print_expr: Format.formatter -> Expgen.manager * Expgen.node -> unit
 
-val automata: Expgen.manager * Expgen.node -> Automata.t * Automata.nfa (*XXX Temporary *)
+val automata: Expgen.manager * Expgen.node -> Automata.t * Automata.automata (*XXX Temporary *)
 
-val print_automata: Format.formatter -> Automata.t * Automata.nfa -> unit
+val print_automata: Format.formatter -> Automata.t * Automata.automata -> unit

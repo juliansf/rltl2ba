@@ -28,6 +28,7 @@ and regex_expr =
 and rltl_expr =
 | RltlTrue
 | RltlFalse
+| RltlProp of node
 | RltlNot of node
 | RltlOr of node * node
 | RltlAnd of node * node

@@ -7,6 +7,9 @@ type tbool = False | True | Top
 external create: unit -> manager =
   "caml_cudd_manager_make"
 
+external size: manager -> int =
+  "caml_cudd_manager_size"
+
 external dtrue: manager -> node =
   "caml_cudd_bdd_dtrue"
 
@@ -24,6 +27,11 @@ external newvar_at_level: manager -> int -> node =
 
 external index: node -> int =
   "caml_cudd_bdd_index"
+
+(*
+external count: node -> int =
+  "caml_cudd_bdd_count"
+*)
 
 external is_true: node -> bool =
   "caml_cudd_bdd_is_true"

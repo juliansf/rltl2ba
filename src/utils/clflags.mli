@@ -9,3 +9,5 @@ val dump_parsetree : bool ref
 val annot : bool ref
 val dump_intcode : bool ref
 val nfa : bool ref
+val ahw : bool ref
+val psl : bool ref

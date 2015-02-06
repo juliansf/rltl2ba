@@ -43,34 +43,6 @@ Library oUnit
   ByteOpt: -ppopt -DBACKTRACE -bin-annot
   NativeOpt: -ppopt -DBACKTRACE -bin-annot
 
-#Library extlib
-#  Path: lib/extlib-1.5.4
-#  FindLibName: extlib
-#  Install: false
-#  Modules: IO,
-#           Base64,
-#           BitSet,
-#           Dllist,
-#           DynArray,
-#           Enum,
-#           ExtArray,
-#           ExtHashtbl,
-#           ExtLib,
-#           ExtList,
-#           ExtString,
-#           Global,
-#           OptParse,
-#           Option,
-#           PMap,
-#           RefList,
-#           Std,
-#           UChar,
-#           UTF8,
-#           Unzip
-#  ByteOpt: -bin-annot
-#  NativeOpt: -bin-annot
-
-
 Library utils
   Path: src/utils
   Install: false
@@ -99,9 +71,13 @@ Library rltl
                    Printexpr,
                    Exptree,
                    automata/Bdd,
+                   automata/Bdd_plus,
+                   automata/Bool,
                    automata/Printbdd,
                    automata/Nfa,
                    automata/Printnfa,
+                   automata/Ahw,
+                   automata/Printahw,
                    automata/Autmanager,
                    automata/Printautomata
   ByteOpt: -bin-annot
@@ -113,6 +89,8 @@ Library parsing
            Syntaxerr
   InternalModules: Parser,
                    Lexer,
+                   Psl_parser,
+                   Psl_lexer,
                    Printast
   BuildDepends: utils
   CompiledObject: best

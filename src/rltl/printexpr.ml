@@ -87,6 +87,8 @@ let rec print_rltl mgr i ppf node =
   | RltlFalse -> line i ppf "RltlFalse\n"
   | RltlNot (n) -> line i ppf "RltlNot\n";
     print_rltl mgr i ppf n
+  | RltlProp (n) -> line i ppf "RltlProp\n";
+    print_bool mgr i ppf n
   | RltlOr (n1,n2) -> line i ppf "RltlOr\n";
     print_rltl mgr i ppf n1;
     print_rltl mgr i ppf n2
@@ -148,6 +150,7 @@ let print_rltl_expr ppf = function
   | RltlTrue -> Format.fprintf ppf "RltlTrue"
   | RltlFalse -> Format.fprintf ppf "RltlFalse"
   | RltlNot (n) -> Format.fprintf ppf "RltlNot(%d)" (node_id n)
+  | RltlProp (n) -> Format.fprintf ppf "RltlProp(%d)" (node_id n)
   | RltlOr (n1,n2) ->
     Format.fprintf ppf "RltlOr(%d,%d)" (node_id n1) (node_id n2)
   | RltlAnd (n1,n2) ->
@@ -178,7 +181,8 @@ let print_manager ppf mgr =
     print_expr 1 ppf e
   in
   let size = Manager.size mgr in
-  let mgr_array = Array.init size (fun i -> Manager.lookup mgr i) in
+  (*let mgr_array = Array.init size (fun i -> Manager.lookup mgr i) in*)
   for i=0 to size-1 do
-    f i mgr_array.(i)
+    (*f i mgr_array.(i)*)
+    f i (Manager.lookup mgr i)
   done

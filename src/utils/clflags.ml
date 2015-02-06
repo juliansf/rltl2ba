@@ -14,3 +14,5 @@ and annot = ref false                     (* -annot *)
 and dump_intcode = ref false              (* -dintcode *)
 
 let nfa = ref false                       (* -nfa *)
+let ahw = ref false                       (* -ahw *)
+let psl = ref false                       (* -psl *)

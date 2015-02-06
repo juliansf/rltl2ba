@@ -1,21 +1,28 @@
-type error =
-| Invalid_Nfa
+module type S = sig
+  type error =
+  | Invalid_Nfa
 
-exception Error of error
+  exception Error of error
 
-type trans = (Bdd.t * int) list
-type t =
-  { nfa_delta: trans array;
-    nfa_start: int;
-    nfa_final: bool array;
-  }
+  module Label : Bool.S
 
-val size : t -> int
+  type label = Label.t
+  type trans = (label * int) list
+  type t =
+    { nfa_delta: trans array;
+      nfa_start: int;
+      nfa_final: bool array;
+    }
 
-val nfa_false : t
-val letter : Bdd.t -> t
-val star : t -> t
-val concat : t -> t -> t
-val fusion : t -> t -> t
-val plus : t -> t -> t
-val product : t -> t -> t
+  val size : t -> int
+
+  val nfa_false : t
+  val letter : label -> t
+  val star : t -> t
+  val concat : t -> t -> t
+  val fusion : t -> t -> t
+  val plus : t -> t -> t
+  val product : t -> t -> t
+end
+
+module Make(B : Bool.S) : S with module Label = B
