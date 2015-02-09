@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 344e5feb7981af480e91866375b9b7ac) *)
+(* DO NOT EDIT (digest: 1076224016f7254173d9adc79bb4ef17) *)
 
 rltl2ba - Translator for RLTL expressions into Buchi automata.
 ==============================================================
@@ -12,7 +12,7 @@ instructions.
 Copyright and license
 ---------------------
 
-(C) 2013 IMDEA Software Institute
+(C) 2015 IMDEA Software Institute
 
 rltl2ba is distributed under the terms of the Berkeley software distribution
 license (3 clauses).

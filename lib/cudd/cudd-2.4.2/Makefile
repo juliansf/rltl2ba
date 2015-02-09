@@ -3,6 +3,10 @@
 # Makefile for the CUDD distribution kit
 #---------------------------------------------------------------------------
 
+# Including configuration data. Must be built by typing `make setup.data`
+# from the root folder of the rltl2ba package.
+sinclude ../../../setup.data.inc
+
 # Beginning of the configuration section. These symbol definitions can
 # be overridden from the command line.
 
@@ -49,8 +53,8 @@ RANLIB	= ranlib
 #ICFLAGS	=
 # These four are typical settings for optimized code with gcc.  The
 # last two also work with icc/ecc.
-#ICFLAGS	= -g -O6 -Wall
-ICFLAGS	= -g -O3 -fPIC -shared
+ICFLAGS_linux_elf= -g -O6 -Wall
+ICFLAGS_macosx  = -g -O3 -fPIC
 #ICFLAGS	= -g -O3 -Wall
 #ICFLAGS	= -g -O3
 
@@ -62,7 +66,7 @@ ICFLAGS	= -g -O3 -fPIC -shared
 #
 #  Mac Os X 
 #
-XCFLAGS	=  -DHAVE_IEEE_754 -DBSD -D__MAC_OS_X__ -DSIZEOF_VOID_P=8 -DSIZEOF_LONG=8
+XCFLAGS_macosx_amd64=-DHAVE_IEEE_754 -DBSD -D__MAC_OS_X__ -DSIZEOF_VOID_P=8 -DSIZEOF_LONG=8
 #
 #==========================
 #  Linux
@@ -72,9 +76,9 @@ XCFLAGS	=  -DHAVE_IEEE_754 -DBSD -D__MAC_OS_X__ -DSIZEOF_VOID_P=8 -DSIZEOF_LONG=
 # Gcc 2.8.1 on i686.
 #XCFLAGS	= -mcpu=pentiumpro -malign-double -DHAVE_IEEE_754 -DBSD
 # Gcc 4.2.4 or higher on x86_64 (64-bit compilation)
-#XCFLAGS	= -mtune=native -DHAVE_IEEE_754 -DBSD -DSIZEOF_VOID_P=8 -DSIZEOF_LONG=8
+XCFLAGS_linux_elf_amd64=-mtune=native -DHAVE_IEEE_754 -DBSD -DSIZEOF_VOID_P=8 -DSIZEOF_LONG=8
 # Gcc 4.2.4 or higher on x86_64 (32-bit compilation)
-#XCFLAGS	= -m32 -mtune=native -malign-double -DHAVE_IEEE_754 -DBSD
+XCFLAGS_linux_elf_i386=-m32 -mtune=native -malign-double -DHAVE_IEEE_754 -DBSD
 # Icc on i686 (older versions may not support -xHost).
 #XCFLAGS	= -ansi -xHost -align -ip -DHAVE_IEEE_754 -DBSD
 # Icc on x86_64 (64-bit compilation).
@@ -162,6 +166,8 @@ XCFLAGS	=  -DHAVE_IEEE_754 -DBSD -D__MAC_OS_X__ -DSIZEOF_VOID_P=8 -DSIZEOF_LONG=
 # cannot be set.
 #XCFLAGS	= -mtune=pentium4 -malign-double -DHAVE_IEEE_754 -DHAVE_GETRLIMIT=0 -DRLIMIT_DATA_DEFAULT=268435456
 
+ICFLAGS=${ICFLAGS_${system}}
+XCFLAGS=${XCFLAGS_${system}_${architecture}}
 
 # Define the level of self-checking and verbosity of the CUDD package.
 #DDDEBUG = -DDD_DEBUG -DDD_VERBOSE -DDD_STATS -DDD_CACHE_PROFILE -DDD_UNIQUE_PROFILE -DDD_COUNT

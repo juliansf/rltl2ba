@@ -8,7 +8,7 @@ License:      BSD-3-clause
 BuildType:    ocamlbuild (0.3)
 Authors:      Julian Samborski-Forlese, Cesar Sanchez
 Maintainers:  Julian Samborski-Forlese <julian.sf@imdea.org>
-Copyrights:   (C) 2013 IMDEA Software Institute
+Copyrights:   (C) 2015 IMDEA Software Institute
 Homepage:     http://software.imdea.org/~julian/rltl2ba
 Plugins:      DevFiles (0.3), StdFiles (0.3), META (0.3)
 #FilesAB:      src/RLTL2BAConf.ml.ab
