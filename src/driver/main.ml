@@ -75,7 +75,9 @@ let fatal err =
 let main () =
   try
     Arg.parse Options.list anon usage;
+    exit 0
   with e ->
+    Printf.printf "LO QUE?";
     Errors.report_error ppf e;
     exit 2
 

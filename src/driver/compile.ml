@@ -35,7 +35,8 @@ let get_outfmt ppf =
   match !Clflags.output_name with
   | None -> ppf
   | Some name ->
-    Format.formatter_of_out_channel (open_out name)
+    if name = "stdout" then Format.std_formatter
+    else Format.formatter_of_out_channel (open_out name)
 
 let expression_file expected_type ppf sourcefile =
   Location.input_name := sourcefile;
