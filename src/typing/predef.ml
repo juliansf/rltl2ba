@@ -1,6 +1,8 @@
 open Btype
 open Types
 
+let type_unit = newty (Tvar (Some "unit"))
+
 let type_bool = newty (Tvar (Some "bool"))
 
 let type_regex = newty (Tvar (Some "regex"))
@@ -10,6 +12,7 @@ let type_rltl = newty (Tvar (Some "rltl"))
 let default_type = type_bool
 
 let add_builtin_types () = begin
+  Btype.add_builtin "unit" type_unit;
   Btype.add_builtin "bool" type_bool;
   Btype.add_builtin "regex" type_regex;
   Btype.add_builtin "rltl" type_rltl;
@@ -43,6 +46,7 @@ let build_initial_env add_builtin empty_env =
     (* Regex opeators *)
     "*", newty (Tarrow (type_regex, type_regex));
     "+", mk_binop (type_regex, type_regex) type_regex;
+    "||", mk_binop (type_regex, type_regex) type_regex;
     "&&", mk_binop (type_regex, type_regex) type_regex;
     ".", mk_binop (type_regex, type_regex) type_regex;
     ";", poly_binop (type_regex, type_rltl) type_regex;

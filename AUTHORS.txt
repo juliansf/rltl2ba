@@ -1,9 +1,13 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 80a21ad7c68884702801ed3ff4e2130f) *)
-Authors of rltl2ba
-Julian Samborski-Forlese
-Cesar Sanchez
+(* DO NOT EDIT (digest: f4f4ee80a1ee819f855c6cac375b8241) *)
 
-Current maintainers of rltl2ba
-Julian Samborski-Forlese <julian.sf@imdea.org>
+Authors of rltl2ba:
+
+* Julian Samborski-Forlese
+* Cesar Sanchez
+
+Current maintainers of rltl2ba:
+
+* Julian Samborski-Forlese <julian.sf@imdea.org>
+
 (* OASIS_STOP *)

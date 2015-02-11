@@ -1,0 +1,14 @@
+/* ABW: */
+digraph {
+ 
+ rank = same;
+ fontsize = 10;
+ arrowType=open;
+ 
+ node_13 [shape=plaintext label="start"]; node_13 -> 13;
+ 13 [shape=circle color=gray fixedsize=true];
+ true_13 [shape=plaintext label=""];
+ 13 -> true_13 [label=" [alarm] " arrowhead=dot];
+ 
+}
+

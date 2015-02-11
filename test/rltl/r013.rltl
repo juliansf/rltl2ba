@@ -1,0 +1,50 @@
+-- Until
+let true5 = true;true;true;true;true in
+let until5 (x:rltl,y:rltl) = x until y with delay true5 in
+
+not {
+  until5.(
+    a01,
+  until5.(
+    a02,
+  until5.(
+    a03,
+  until5.(
+    a04,
+  until5.(
+    a05,
+  until5.(
+    a06,
+  until5.(
+    a07,
+  until5.(
+    a08,
+  until5.(
+    a10,
+  until5.(
+    a11,
+  until5.(
+    a12,
+  until5.(
+    a13,
+  until5.(
+    a14,
+  until5.(
+    a15,
+  until5.(
+    a16,
+  until5.(
+    a17,
+  until5.(
+    a18,
+  until5.(
+    a19,
+  until5.(
+    a20,
+  until5.(
+    a21,
+  until5.(
+    a22,
+    a23
+  )))))))))))))))))))))
+}

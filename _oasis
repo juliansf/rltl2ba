@@ -4,11 +4,11 @@ FindlibVersion: >= 1.2.6
 Name:         rltl2ba
 Version:      0.1.0
 LicenseFile:  LICENSE
-License:      BSD3
+License:      BSD-3-clause
 BuildType:    ocamlbuild (0.3)
 Authors:      Julian Samborski-Forlese, Cesar Sanchez
 Maintainers:  Julian Samborski-Forlese <julian.sf@imdea.org>
-Copyrights:   (C) 2013 IMDEA Software Institute
+Copyrights:   (C) 2015 IMDEA Software Institute
 Homepage:     http://software.imdea.org/~julian/rltl2ba
 Plugins:      DevFiles (0.3), StdFiles (0.3), META (0.3)
 #FilesAB:      src/RLTL2BAConf.ml.ab
@@ -28,8 +28,11 @@ Library cudd
   FindLibName: cudd
   Install: false
   Modules: Cudd
-  CSources: cudd_stubs.c
-  CCOpt: -I lib/cudd/include
+  CSources: mlcudd.h,
+            mlcudd.c,
+            cudd_stubs.h,
+            cudd_stubs.c
+  CCOpt: -I lib/cudd/include -I lib/cudd/
   CCLib: -lcudd -lcudd_util -lmtr -lepd -lst -Llib/cudd/lib
 
 Library oUnit
@@ -39,34 +42,6 @@ Library oUnit
   BuildDepends: unix
   ByteOpt: -ppopt -DBACKTRACE -bin-annot
   NativeOpt: -ppopt -DBACKTRACE -bin-annot
-
-#Library extlib
-#  Path: lib/extlib-1.5.4
-#  FindLibName: extlib
-#  Install: false
-#  Modules: IO,
-#           Base64,
-#           BitSet,
-#           Dllist,
-#           DynArray,
-#           Enum,
-#           ExtArray,
-#           ExtHashtbl,
-#           ExtLib,
-#           ExtList,
-#           ExtString,
-#           Global,
-#           OptParse,
-#           Option,
-#           PMap,
-#           RefList,
-#           Std,
-#           UChar,
-#           UTF8,
-#           Unzip
-#  ByteOpt: -bin-annot
-#  NativeOpt: -bin-annot
-
 
 Library utils
   Path: src/utils
@@ -89,11 +64,22 @@ Library rltl
   Install: false
   Pack: false
   BuildDepends: cudd, utils
-  Modules: Expgen
+  Modules: Rltl
   InternalModules: Expgen_private,
                    Manager,
                    Node,
-                   Printexpr
+                   Printexpr,
+                   Exptree,
+                   automata/Bdd,
+                   automata/Bdd_plus,
+                   automata/Bool,
+                   automata/Printbdd,
+                   automata/Nfa,
+                   automata/Printnfa,
+                   automata/Ahw,
+                   automata/Printahw,
+                   automata/Autmanager,
+                   automata/Printautomata
   ByteOpt: -bin-annot
   NativeOpt: -bin-annot
 
@@ -103,6 +89,8 @@ Library parsing
            Syntaxerr
   InternalModules: Parser,
                    Lexer,
+                   Psl_parser,
+                   Psl_lexer,
                    Printast
   BuildDepends: utils
   CompiledObject: best

@@ -10,3 +10,7 @@ val valOf: 'a option -> 'a
 val create_hashtable: int -> ('a * 'b) list -> ('a,'b) Hashtbl.t
   (* Create a hashtable of the given size and fills it with the
      given bindings - form Ocaml.Misc module. *)
+
+val uniques: 'a list -> 'a list
+  (* Delete duplicates from a list, preserving the order of the
+     first unique elements. *)

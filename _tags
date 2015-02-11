@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5de7809d4decaf0873231f04892fc5d4)
-# Ignore VCS directories, you can use the same kind of rule outside 
-# OASIS_START/STOP if you want to exclude directories that contains 
+# DO NOT EDIT (digest: d1fb2dace8e7ffb01e34f16a4fd683fe)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
@@ -16,6 +16,7 @@
 # Library cudd
 "lib/cudd/cudd.cmxs": use_cudd
 <lib/cudd/*.ml{,i}>: oasis_library_cudd_ccopt
+"lib/cudd/mlcudd.c": oasis_library_cudd_ccopt
 "lib/cudd/cudd_stubs.c": oasis_library_cudd_ccopt
 <lib/cudd/cudd.{cma,cmxa}>: oasis_library_cudd_cclib
 "lib/cudd/libcudd_stubs.lib": oasis_library_cudd_cclib
@@ -36,10 +37,14 @@
 "src/rltl/rltl.cmxs": use_rltl
 <src/rltl/rltl.{cma,cmxa}>: oasis_library_rltl_byte
 <src/rltl/*.ml{,i}>: oasis_library_rltl_byte
+<src/rltl/automata/*.ml{,i}>: oasis_library_rltl_byte
 <src/rltl/rltl.{cma,cmxa}>: oasis_library_rltl_native
 <src/rltl/*.ml{,i}>: oasis_library_rltl_native
+<src/rltl/automata/*.ml{,i}>: oasis_library_rltl_native
 <src/rltl/*.ml{,i}>: use_cudd
 <src/rltl/*.ml{,i}>: use_utils
+<src/rltl/automata/*.ml{,i}>: use_cudd
+<src/rltl/automata/*.ml{,i}>: use_utils
 # Library parsing
 "src/parsing/parsing.cmxs": use_parsing
 <src/parsing/parsing.{cma,cmxa}>: oasis_library_parsing_byte
@@ -61,10 +66,10 @@
 <src/translator/*.ml{,i}>: oasis_library_translator_byte
 <src/translator/translator.{cma,cmxa}>: oasis_library_translator_native
 <src/translator/*.ml{,i}>: oasis_library_translator_native
-<src/translator/*.ml{,i}>: use_rltl
 <src/translator/*.ml{,i}>: use_cudd
-<src/translator/*.ml{,i}>: use_typing
 <src/translator/*.ml{,i}>: use_parsing
+<src/translator/*.ml{,i}>: use_rltl
+<src/translator/*.ml{,i}>: use_typing
 <src/translator/*.ml{,i}>: use_utils
 # Library driver
 "src/driver/driver.cmxs": use_driver
@@ -73,37 +78,37 @@
 <src/driver/driver.{cma,cmxa}>: oasis_library_driver_native
 <src/driver/*.ml{,i}>: oasis_library_driver_native
 # Executable rltl2ba
-<src/driver/main.{native,byte}>: use_translator
-<src/driver/main.{native,byte}>: use_rltl
 <src/driver/main.{native,byte}>: use_cudd
-<src/driver/main.{native,byte}>: use_typing
 <src/driver/main.{native,byte}>: use_parsing
+<src/driver/main.{native,byte}>: use_rltl
+<src/driver/main.{native,byte}>: use_translator
+<src/driver/main.{native,byte}>: use_typing
 <src/driver/main.{native,byte}>: use_utils
-<src/*.ml{,i}>: use_translator
-<src/*.ml{,i}>: use_rltl
 <src/*.ml{,i}>: use_cudd
-<src/*.ml{,i}>: use_typing
 <src/*.ml{,i}>: use_parsing
+<src/*.ml{,i}>: use_rltl
+<src/*.ml{,i}>: use_translator
+<src/*.ml{,i}>: use_typing
 <src/*.ml{,i}>: use_utils
-<src/driver/*.ml{,i}>: use_translator
-<src/driver/*.ml{,i}>: use_rltl
 <src/driver/*.ml{,i}>: use_cudd
-<src/driver/*.ml{,i}>: use_typing
 <src/driver/*.ml{,i}>: use_parsing
+<src/driver/*.ml{,i}>: use_rltl
+<src/driver/*.ml{,i}>: use_translator
+<src/driver/*.ml{,i}>: use_typing
 <src/driver/*.ml{,i}>: use_utils
 # Executable syntax_test
+"test/syntax_test.native": pkg_unix
+"test/syntax_test.native": pkg_util
+"test/syntax_test.native": use_driver
 "test/syntax_test.native": use_oUnit
 "test/syntax_test.native": use_parsing
 "test/syntax_test.native": use_utils
-"test/syntax_test.native": use_driver
-"test/syntax_test.native": pkg_util
-"test/syntax_test.native": pkg_unix
+<test/*.ml{,i}>: pkg_unix
+<test/*.ml{,i}>: pkg_util
+<test/*.ml{,i}>: use_driver
 <test/*.ml{,i}>: use_oUnit
 <test/*.ml{,i}>: use_parsing
 <test/*.ml{,i}>: use_utils
-<test/*.ml{,i}>: use_driver
-<test/*.ml{,i}>: pkg_util
-<test/*.ml{,i}>: pkg_unix
 # OASIS_STOP
 
 <lib/cudd/cudd-2.4.2>: -traverse

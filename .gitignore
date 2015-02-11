@@ -65,7 +65,16 @@ _build
 *.byte
 *.d.native
 *.p.byte
+setup.data
 
 # Emacs backup copies
 #####################
 *~
+\#*
+.\#*
+
+# Specific to this project
+##########################
+rltl2ba
+lib/cudd/cudd-2.4.2/include
+lib/cudd/cudd-2.4.2/nanotrav/nanotrav

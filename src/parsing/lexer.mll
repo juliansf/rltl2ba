@@ -40,11 +40,14 @@
       "or", OR;
       "overlap", OVERLAP;
       "release", RELEASE;
+      "R", RELEASE;
       "strong_release", SRELEASE;
       "true", TRUE;
       "tt", TRUE;
       "until", UNTIL;
+      "U", UNTIL;
       "wait_for", WUNTIL;
+      "W", WUNTIL;
       "weak_until", WUNTIL;
       "with", WITH;
     ]
@@ -124,7 +127,7 @@ rule token = parse
 | "&"   { AMPERSAND }
 | "|"   { BAR }
 | "&&"  { AMPERAMPER }
-(* | "||"  { BARBAR } *)
+| "||"  { BARBAR }
 | "*"   { STAR }
 | "+"   { PLUS }
 

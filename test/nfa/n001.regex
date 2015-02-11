@@ -1,0 +1,3 @@
+-- Trying how it works
+let prod_ab = a && b in
+prod_ab* && prod_ab (c+a)*

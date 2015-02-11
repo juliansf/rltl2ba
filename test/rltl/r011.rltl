@@ -1,0 +1,2 @@
+-- Weak Power
+(x;z) weak_until y with delay r;s

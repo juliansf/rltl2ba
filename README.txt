@@ -1,15 +1,22 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: e5d3d8f0423dff016f40407b67888085) *)
-This is the README file for the rltl2ba distribution.
+(* DO NOT EDIT (digest: 1076224016f7254173d9adc79bb4ef17) *)
 
-(C) 2013 IMDEA Software Institute
+rltl2ba - Translator for RLTL expressions into Buchi automata.
+==============================================================
 
-Translator for RLTL expressions into Buchi automata.
+See the file [INSTALL.txt](INSTALL.txt) for building and installation
+instructions.
 
-See the files INSTALL.txt for building and installation instructions. See the
-file LICENSE for copying conditions. 
+[Home page](http://software.imdea.org/~julian/rltl2ba)
 
-Home page: http://software.imdea.org/~julian/rltl2ba
+Copyright and license
+---------------------
 
+(C) 2015 IMDEA Software Institute
+
+rltl2ba is distributed under the terms of the Berkeley software distribution
+license (3 clauses).
+
+See [LICENSE](LICENSE) for more information.
 
 (* OASIS_STOP *)

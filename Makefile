@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: bc1e05bfc8b39b664f29dae8dbd3ebbb)
+# DO NOT EDIT (digest: a3c674b4239234cbbe53afe090018954)
 
 SETUP = ocaml setup.ml
 
@@ -12,7 +12,7 @@ doc: setup.data build
 test: setup.data build
 	$(SETUP) -test $(TESTFLAGS)
 
-all: 
+all:
 	$(SETUP) -all $(ALLFLAGS)
 
 install: setup.data
@@ -24,27 +24,40 @@ uninstall: setup.data
 reinstall: setup.data
 	$(SETUP) -reinstall $(REINSTALLFLAGS)
 
-clean: 
+clean:
 	$(SETUP) -clean $(CLEANFLAGS)
 
-distclean: 
+distclean:
 	$(SETUP) -distclean $(DISTCLEANFLAGS)
 
 setup.data:
+	$(SETUP) -configure $(CONFIGUREFLAGS)
+
+configure:
 	$(SETUP) -configure $(CONFIGUREFLAGS)
 
 .PHONY: build doc test all install uninstall reinstall clean distclean configure
 
 # OASIS_STOP
 
+setup.data.inc: setup.data
+	cat $< | xargs -I % echo % > setup.data.inc
+
+sinclude setup.data.inc
+
+ifeq ($(system), linux_elf)
+L=-L
+endif
+
 CUDD_DIR=lib/cudd/cudd-2.4.2
 CUDD_BUILD=_build/lib/cudd
 
-cudd: 
+cudd: setup.data
 	@echo "Making the CUDD Package."
 	@cd $(CUDD_DIR); make 
 	@mkdir -p $(CUDD_BUILD);
-	@cp -rf $(CUDD_DIR)/lib $(CUDD_DIR)/include $(CUDD_BUILD)
+	@cp -rf $(L) $(CUDD_DIR)/lib $(CUDD_DIR)/include $(CUDD_BUILD)
 
 cudddistclean:
+	rm setup.data.inc
 	@cd $(CUDD_DIR); make distclean

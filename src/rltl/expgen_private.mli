@@ -46,6 +46,11 @@ val is_bool: manager -> node -> bool
 val is_regex: manager -> node -> bool
 val is_rltl: manager -> node -> bool
 
+(* Construct super type expression of sub type expression *)
+val make_bool: manager -> node -> unit
+val make_regex: manager -> node -> unit
+val make_rltl: manager -> node -> unit
+
 (* Flags for Overlapping, Sequential and Power Operators *)
 val overlap: bool -> overlap_flag
 

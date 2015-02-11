@@ -1,3 +1,5 @@
+open Rltl
+
 type t =
 | ValEntry of Expgen.node
 | FunEntry of (t -> t)

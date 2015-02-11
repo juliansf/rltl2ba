@@ -28,9 +28,15 @@ and regex_expr =
 and rltl_expr =
 | RltlTrue
 | RltlFalse
+| RltlProp of node
 | RltlNot of node
 | RltlOr of node * node
 | RltlAnd of node * node
 | RltlSeq of seq_flag * overlap_flag * node * node
 | RltlPower of power_flag * overlap_flag * node * node * node
 | RltlClosure of node
+
+
+(* Auxiliary functions *)
+val equal_expr: expression -> expression -> bool
+val base: expression (* invalid node *)
