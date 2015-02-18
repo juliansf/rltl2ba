@@ -47,6 +47,7 @@ module type S = sig
   val weak_power_fusion: manager -> t -> Nfa.t -> t -> t
   val dual_weak_power_fusion: manager -> t -> Nfa.t -> t -> t
   val closure: manager -> Nfa.t -> t
+  val dual_closure: manager -> Nfa.t -> t
 
   (*val simplify: manager -> t -> unit*)
 

@@ -61,3 +61,6 @@ val regular: unit -> power_flag
 val weak: unit -> power_flag
 val dual: unit -> power_flag
 val dualweak: unit -> power_flag
+
+val positive: unit -> closure_flag
+val negative: unit -> closure_flag

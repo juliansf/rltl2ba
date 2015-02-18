@@ -34,7 +34,7 @@ and rltl_expr =
 | RltlAnd of node * node
 | RltlSeq of seq_flag * overlap_flag * node * node
 | RltlPower of power_flag * overlap_flag * node * node * node
-| RltlClosure of node
+| RltlClosure of closure_flag * node
 
 
 (* Auxiliary functions *)

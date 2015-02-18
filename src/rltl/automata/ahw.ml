@@ -47,6 +47,7 @@ module type S = sig
   val weak_power_fusion: manager -> t -> Nfa.t -> t -> t
   val dual_weak_power_fusion: manager -> t -> Nfa.t -> t -> t
   val closure: manager -> Nfa.t -> t
+  val dual_closure: manager -> Nfa.t -> t
 
   (*val simplify: manager -> t -> unit*)
 
@@ -731,18 +732,21 @@ struct
 
       (* Regular *)
       let state_map = Array.init n (fun i ->
-        if nfa_delta.(i) != [] then new_state () else mgr.ahw_false) in
+        if nfa_final.(i) then mgr.ahw_true
+        else if nfa_delta.(i) = [] then mgr.ahw_false
+        else new_state ()) in
 
       let state i = state_map.(i) in
       let lstate i =
         let si = state i in
-        if si = mgr.ahw_false then Label.dfalse
+        if si = mgr.ahw_true then Label.dtrue
+        else if si = mgr.ahw_false then Label.dfalse
         else Label.dstate (state i)
       in
 
       (* Create the transitions and set the colors *)
       for i=0 to n-1 do
-        if state i != mgr.ahw_false then begin
+        if state i != mgr.ahw_true && state i != mgr.ahw_false then begin
           let succ =
             List.fold_right (fun (b,j) s ->
               Label.dor (Label.dand b (lstate j)) s
@@ -756,29 +760,35 @@ struct
 
       (* Dual *)
       let state_map = Array.init n (fun i ->
-        if nfa_delta.(i) != [] then new_state () else mgr.ahw_true) in
+        if nfa_final.(i) then mgr.ahw_false
+        else if nfa_delta.(i) = [] then mgr.ahw_true
+        else new_state ()) in
 
       let state i = state_map.(i) in
       let lstate i =
         let si = state i in
-        if si = mgr.ahw_true then Label.dtrue
+        if si = mgr.ahw_false then Label.dfalse
+        else if si = mgr.ahw_true then Label.dtrue
         else Label.dstate (state i)
       in
 
       (* Create the transitions and set the colors *)
       for i=0 to n-1 do
-        if state i != mgr.ahw_true then begin
+        if state i != mgr.ahw_true && state i != mgr.ahw_false then begin
           let succ =
             List.fold_right (fun (b,j) s ->
               Label.dand (Label.dor (Label.dnot b) (lstate j)) s
             ) nfa_delta.(i) Label.dtrue
           in
-          set_delta mgr (state i) (Label.simplify succ);
+          set_delta mgr (state i) succ; (*(Label.simplify succ)*);
           set_color mgr (state i) 1
         end
       done;
       let ahw_dual = state nfa_start in
 
-      disj mgr (concat mgr nfa (negate (empty mgr))) {ahw_regular;ahw_dual}
+    (*disj mgr (concat mgr nfa (negate (empty mgr))) {ahw_regular;ahw_dual}*)
+      {ahw_regular;ahw_dual}
     end
+
+  let dual_closure mgr nfa = negate (closure mgr nfa)
 end

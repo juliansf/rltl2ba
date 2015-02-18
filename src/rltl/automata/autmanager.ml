@@ -193,7 +193,12 @@ let rec get_ahw ?simpl:(simpl=false) mgr node =
               in
               f amgr x r y
             end
-          | RltlClosure n -> Ahw.closure amgr (get_nfa mgr n)
+          | RltlClosure (cfl, n) ->
+            begin
+              match cfl with
+              | Positive -> Ahw.closure amgr (get_nfa mgr n)
+              | Negative -> Ahw.dual_closure amgr (get_nfa mgr n)
+            end
         in
         (*if simpl then Ahw.simplify amgr rho;*)
         Hashtbl.add mgr.aut_ahw node rho;

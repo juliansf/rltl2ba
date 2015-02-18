@@ -56,6 +56,9 @@ val weak: unit -> power_flag
 val dual: unit -> power_flag
 val dualweak: unit -> power_flag
 
+val positive: unit -> closure_flag
+val negative: unit -> closure_flag
+
 (* Pretty printer of node tree *)
 val print_node: manager -> Format.formatter -> node -> unit
 val print_manager: Format.formatter -> manager -> unit

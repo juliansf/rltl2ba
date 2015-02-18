@@ -92,14 +92,32 @@ let make_idempotent_commutative f x y =
 
 (* New variable with labeling *)
 let new_var mgr s =
-  Manager.add mgr (_bool (BoolIdent s))
+  let node = Manager.add mgr (_bool (BoolIdent s)) in
+  Manager.add mgr (_bool (BoolNot node));
+  node
 
 (* Boolean Expressions *)
-let bool_not mgr node =
+let rec bool_not mgr node =
   make_bool mgr node;
   if node = const_false then const_true
   else if node = const_true then const_false
-  else Manager.add mgr (_bool (BoolNot node))
+  else begin
+    match (getexp mgr node).exp_bool with
+    | None -> failwith "__file__:__line__: [internal error] cannot ocurr."
+    | Some bexp -> match bexp with
+      | BoolTrue -> const_false
+      | BoolFalse -> const_true
+      | BoolIdent _ -> Manager.add mgr (_bool (BoolNot node))
+      | BoolNot x -> x
+      | BoolOr (x,y) ->
+        let not_x = bool_not mgr x in
+        let not_y = bool_not mgr y in
+        Manager.add mgr (_bool (BoolAnd (not_x, not_y)))
+      | BoolAnd (x,y) ->
+        let not_x = bool_not mgr x in
+        let not_y = bool_not mgr y in
+        Manager.add mgr (_bool (BoolOr (not_x, not_y)))
+  end
 
 let bool_and mgr n1 n2 =
   make_bool mgr n1;
@@ -178,9 +196,54 @@ let regex_concat mgr ofl n1 n2 =
   Manager.add mgr (_regex (RegexConcat (ofl, n1, n2)))
 
 (* RLTL Expressions *)
-let rltl_not mgr node =
+let rec rltl_not mgr node =
   make_rltl mgr node;
-  Manager.add mgr (_rltl (RltlNot node))
+  if node = const_false then const_true
+  else if node = const_true then const_false
+  else begin
+    match (getexp mgr node).exp_rltl with
+    | None -> failwith "__file__:__line__: [internal error] cannot ocurr."
+    | Some rexp ->
+      begin match rexp with
+      | RltlTrue -> const_false
+      | RltlFalse -> const_true
+      | RltlProp x ->
+        let bnode = bool_not mgr x in
+        make_rltl mgr bnode;
+        bnode
+      | RltlNot _ -> failwith "__file__:__line__: [internal error] cannot ocurr."
+      | RltlOr (x,y) ->
+        let not_x = rltl_not mgr x in
+        let not_y = rltl_not mgr y in
+        let f a b = Manager.add mgr (_rltl (RltlAnd (a, b))) in
+        make_idempotent_commutative f not_x not_y
+      | RltlAnd (x,y) ->
+        let not_x = rltl_not mgr x in
+        let not_y = rltl_not mgr y in
+        let f a b = Manager.add mgr (_rltl (RltlOr (a, b))) in
+        make_idempotent_commutative f not_x not_y
+      | RltlSeq (sfl, ofl, r, x) ->
+        let not_x = rltl_not mgr x in
+        let not_sfl = match sfl with
+          | Existential -> Universal
+          | Universal -> Existential in
+        Manager.add mgr (_rltl (RltlSeq (not_sfl, ofl, r, not_x)))
+      | RltlPower (pfl, ofl, x, y, r) ->
+        let not_x = rltl_not mgr x in
+        let not_y = rltl_not mgr y in
+        let not_pfl = match pfl with
+          | RegularPower -> DualPower
+          | DualPower -> RegularPower
+          | WeakPower -> DualWeakPower
+          | DualWeakPower -> WeakPower in
+        Manager.add mgr (_rltl (RltlPower (not_pfl, ofl, not_x, not_y, r)))
+      | RltlClosure (cfl, r) ->
+        let not_cfl = match cfl with
+          | Positive -> Negative
+          | Negative -> Positive in
+        Manager.add mgr (_rltl (RltlClosure (not_cfl, r)))
+      end
+  end
 
 let rltl_or mgr n1 n2 =
   make_rltl mgr n1;
@@ -222,10 +285,10 @@ let rltl_power mgr pfl ofl x y r =
 
 let rltl_closure mgr node =
   make_regex mgr node;
-  Manager.add mgr (_rltl (RltlClosure node))
+  Manager.add mgr (_rltl (RltlClosure (Positive, node)))
 
 let mk_overlap mgr node =
-  (match getexp mgr node with
+  match getexp mgr node with
   | {exp_bool=Some _} -> raise (Node_type_clash node)
   | {exp_bool=None; exp_regex=None; exp_rltl=Some rexp} as e ->
     let rexp' = match rexp with
@@ -235,7 +298,8 @@ let mk_overlap mgr node =
       | RltlPower(pfl,WithoutOverlap,x,y,r) -> RltlPower(pfl,WithOverlap,x,y,r)
       | _ -> raise (Non_overlapping_node node)
     in
-    e.exp_rltl <- Some rexp'
+    (*e.exp_rltl <- Some rexp'*)
+    Manager.add mgr (_rltl rexp')
 
   | {exp_bool=None; exp_regex=Some rexp } as e ->
     let rexp' = match rexp with
@@ -243,9 +307,9 @@ let mk_overlap mgr node =
       | RegexConcat(WithoutOverlap,n1,n2) -> RegexConcat(WithOverlap,n1,n2)
       | _ -> raise (Non_overlapping_node node)
     in
-    e.exp_regex <- Some rexp'
-  | _ -> raise (Non_overlapping_node node));
-  node
+    (*e.exp_regex <- Some rexp'*)
+    Manager.add mgr (_regex rexp')
+  | _ -> raise (Non_overlapping_node node)
 
 
 let overlap = function
@@ -259,3 +323,6 @@ let regular () = RegularPower
 let weak () = WeakPower
 let dual () = DualPower
 let dualweak () = DualWeakPower
+
+let positive () = Positive
+let negative () = Negative
