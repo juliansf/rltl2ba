@@ -1,7 +1,45 @@
 module Ahw = Ahw.Make(Nfa.Make(Bool.Default.B))
 open Ahw
 
-let color = [|"gray"; "red"; "green"|]
+(*let color = [|"gray"; "red"; "green"|]*)
+
+let stratum_kind mgr h =
+  match get_stratum_kind mgr h with
+  | SAccept -> "A"
+  | SReject -> "R"
+  | SBuchi -> "B"
+  | SCoBuchi -> "C"
+
+let stratum_color mgr h =
+  match get_stratum_kind mgr h with
+  | SAccept -> "#94E9BF"
+  | SReject -> "#FF8383"
+  | SBuchi -> "#99CCFF"
+  | SCoBuchi -> "#DADADA"
+
+
+let state_names = Hashtbl.create 8
+let state_count = ref (-1)
+let strata_names = Hashtbl.create 8
+let strata_count = ref(-1)
+
+let reset () = begin
+  Hashtbl.reset state_names; state_count := -1;
+  Hashtbl.reset strata_names; strata_count := -1
+end
+
+let rename names count i =
+  if Hashtbl.mem names i then
+    Hashtbl.find names i
+  else begin
+    incr count;
+    Hashtbl.add names i (!count);
+    !count
+  end
+
+let rename_state = rename state_names state_count
+let rename_stratum = rename strata_names strata_count
+
 
 (*
 let min_models names node =
@@ -83,23 +121,22 @@ let rec print_class ?(and_arrow=false) si fmt c =
     List.iter (print_class ~and_arrow:true q fmt) xs
 
 let ahw2dot mgr fmt ahw =
-  let state_names = Hashtbl.create 8 in
-  let state_count = ref (-1) in
-  let rename i =
-    if Hashtbl.mem state_names i then
-      Hashtbl.find state_names i
-    else begin
-      incr state_count;
-      Hashtbl.add state_names i (!state_count);
-      !state_count
-    end
-  in
+  reset ();
+
+  let strata = Hashtbl.create 8 in
 
   (* Header *)
-  Format.fprintf fmt "@[<v 1>digraph {@;@;rank = same;@;fontsize = 10;@;@;";
+  Format.fprintf fmt "@[<v 1>digraph {@;@;rank = same;@;fontsize = 10;@;\
+    labelloc=t;@;labeljust=l;@; \
+    label = <@[<v 1><table border='0' cellspacing='0'>@; \
+                    @[<v 1><tr>@; <td bgcolor='#94E9BF'> A=Accepting </td>@; \
+                        <td bgcolor='#FF8383'> R=Rejecting </td>@; \
+                        <td bgcolor='#99CCFF'> B=B&uuml;chi </td>@; \
+                        <td bgcolor='#DADADA'> C=CoB&uuml;chi </td>@]@; \
+                    </tr>@; </table>@]>;@;@;";
 
   (* Print the initial state *)
-  let i = rename ahw in
+  let i = rename_state ahw in
   Format.fprintf fmt
     "node_%d [shape=plaintext label=\"start\"]; \
      node_%d -> %d;@\n" i i i;
@@ -113,15 +150,23 @@ let ahw2dot mgr fmt ahw =
   Hashtbl.add visited ahw ();
   while not (Queue.is_empty waiting) do
     let q = Queue.take waiting in
-    let i = rename q in
-    assert (get_color mgr q >= 0 && get_color mgr q < 3);
+    let i = rename_state q in
+    let h = get_stratum mgr q in
+    let strata_states =
+      if Hashtbl.mem strata h then Hashtbl.find strata h
+      else
+        let t = Hashtbl.create 1 in Hashtbl.add strata h t; t in
+    Hashtbl.add strata_states i ();
+
+    (*assert (get_color mgr q >= 0 && get_color mgr q < 3);*)
     (* Print the node *)
-    Format.fprintf fmt "%d [shape=circle color=%s fixedsize=true];@\n"
-      i (color.(get_color mgr q));
+    Format.fprintf fmt
+      "%d [shape=%scircle fillcolor=white style=filled fixedsize=true];@\n"
+      i (if is_final mgr q then "double" else "")(*(color.(get_color mgr q))*);
 
     (* Get successors condition *)
     let delta = Ahw.Nfa.Label.map_states (fun i ->
-      Ahw.Nfa.Label.dstate (rename i)) (get_delta mgr q) in
+      Ahw.Nfa.Label.dstate (rename_state i)) (get_delta mgr q) in
 
     (* Print the condition *)
     Format.fprintf fmt "%a" (print_class (string_of_int i))
@@ -136,26 +181,31 @@ let ahw2dot mgr fmt ahw =
     ) (get_delta mgr q)
   done;
 
+  (* Create clusters *)
+  Hashtbl.iter (fun h states ->
+    let kind = stratum_kind mgr h in
+    let hname = rename_stratum h in
+
+    Format.fprintf fmt
+      "@;@[<v 1>subgraph cluster_%d {@;\
+       style=filled;@;\
+       color=\"%s\";@;\
+       node [style=filled,color=white];" hname (stratum_color mgr h);
+    Hashtbl.iter (fun q _ -> Format.fprintf fmt "%d " q) states;
+    Format.fprintf fmt ";@;labeljust=\"l\"@;label=%s;@]@;}@\n" kind;
+
+  ) strata;
+
   (* Footer *)
   Format.fprintf fmt "@]@;}@."
 
 
 
 let print_ahw mgr fmt ahw =
-  let state_names = Hashtbl.create 8 in
-  let state_count = ref (-1) in
-  let rename i = i
-(*    if Hashtbl.mem state_names i then
-      Hashtbl.find state_names i
-    else begin
-      incr state_count;
-      Hashtbl.add state_names i (!state_count);
-      !state_count
-    end*)
-  in
+  reset();
 
   (* Print the initial state *)
-  Format.fprintf fmt "start: %d@;" (rename ahw);
+  Format.fprintf fmt "start: %d@;" (rename_state ahw);
 
   (* BFS traversal of the AHW *)
   let waiting : state Queue.t = Queue.create () in
@@ -167,10 +217,12 @@ let print_ahw mgr fmt ahw =
   while not (Queue.is_empty waiting) do
     let q = Queue.take waiting in
     let delta =
-      Ahw.Nfa.Label.map_states (fun i -> Ahw.Nfa.Label.dstate (rename i))
+      Ahw.Nfa.Label.map_states (fun i -> Ahw.Nfa.Label.dstate (rename_state i))
         (get_delta mgr q)
     in
-    Format.fprintf fmt "%4d [%d] : " (rename q) (get_color mgr q);
+    let h = get_stratum mgr q in
+    let hk = stratum_kind mgr h in
+    Format.fprintf fmt "%4d [%d,%s] : " (rename_state q) (rename_stratum h) hk;
     Format.fprintf fmt "%s@\n" (Ahw.Nfa.Label.to_string delta);
     Ahw.Nfa.Label.iter_states (fun i ->
       if not (Hashtbl.mem visited i) then begin

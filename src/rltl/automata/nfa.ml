@@ -232,14 +232,14 @@ struct
   let count = ref 0
   let simplify nfa =
     incr count;
-    Printf.fprintf stderr "Simplifying(%d)... %!" !count;
+    (*Printf.fprintf stderr "Simplifying(%d)... %!" !count;*)
     let x =
       if nfa = _false then _false
       else if is_well_formed nfa
       then remove_unreachable (merge_states nfa)
       else raise (Error Invalid_Nfa)
     in
-    Printf.fprintf stderr "done\n%!";
+    (*Printf.fprintf stderr "done\n%!";*)
     x
 
 
