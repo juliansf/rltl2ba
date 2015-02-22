@@ -12,3 +12,7 @@ type power_flag =
 | WeakPower
 | DualPower
 | DualWeakPower
+
+type closure_flag =
+| Positive
+| Negative

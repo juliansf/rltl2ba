@@ -15,10 +15,10 @@ let nfa2dot mgr fmt nfa : unit =
   Printnfa.fprintf (Printnfa.dot_desc (Bool.Default.B.to_string)) fmt nfa
 
 let print_ahw mgr fmt ahw : unit =
-  Printahw.print_ahw mgr.aut_ahwmgr fmt ahw.Ahw.ahw_regular
+  Printahw.print_ahw mgr.aut_ahwmgr fmt ahw
 
 let ahw2dot mgr fmt ahw : unit =
-  Printahw.ahw2dot mgr.aut_ahwmgr fmt ahw.Ahw.ahw_regular
+  Printahw.ahw2dot mgr.aut_ahwmgr fmt ahw
 
 (*
 let print_nfa mgr fmt nfa : unit =

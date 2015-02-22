@@ -8,30 +8,28 @@ module type S = sig
 
   type state = int
   type trans = Nfa.Label.t
-
-  type strata = SAccept | SReject | SBuchi | SCoBuchi
+  type stratum = int
+  type strat_kind = SAccept | SReject | SBuchi | SCoBuchi
 
   type manager =
     { ahw_bddmgr: Bdd.manager;
       ahw_delta: (state, trans) Hashtbl.t;
-      ahw_color: (state, int) Hashtbl.t;
-      (*ahw_strata: (int, strata) Hashtbl.t;*)
+      ahw_final: (state, unit) Hashtbl.t;
+      ahw_stratum: (state, stratum) Hashtbl.t;
+      ahw_strata: (stratum, strat_kind) Hashtbl.t;
       ahw_false: state;
       ahw_true: state;
     }
 
   type ahw = state
 
-  type t =
-    {ahw_regular: ahw;
-     ahw_dual: ahw;
-    }
+  type t = ahw
 
   val init: Bdd.manager -> manager
 
-  val empty: manager -> t
+  val bottom: manager -> t
+  val top: manager -> t
   val letter: manager -> Nfa.label -> t
-  val negate: t -> t
   val disj: manager -> t -> t -> t
   val conj: manager -> t -> t -> t
   val concat: manager -> Nfa.t -> t -> t
@@ -47,6 +45,7 @@ module type S = sig
   val weak_power_fusion: manager -> t -> Nfa.t -> t -> t
   val dual_weak_power_fusion: manager -> t -> Nfa.t -> t -> t
   val closure: manager -> Nfa.t -> t
+  val dual_closure: manager -> Nfa.t -> t
 
   (*val simplify: manager -> t -> unit*)
 
@@ -56,8 +55,11 @@ module type S = sig
   *)
 
   (* Auxiliary functions *)
+  val is_final: manager -> state -> bool
   val get_delta: manager -> state -> trans
-  val get_color: manager -> state -> int
+  val get_stratum: manager -> state -> stratum
+  val get_stratum_kind: manager -> stratum -> strat_kind
+  val get_stratum_states: manager -> stratum -> state list
 end
 
 
@@ -73,40 +75,46 @@ struct
   module Label = Nfa.Label
 
   type state = int
-  type trans = Label.t
-
-  type strata = SAccept | SReject | SBuchi | SCoBuchi
+  type trans = Nfa.Label.t
+  type stratum = int
+  type strat_kind = SAccept | SReject | SBuchi | SCoBuchi
 
   type manager =
     { ahw_bddmgr: Bdd.manager;
       ahw_delta: (state, trans) Hashtbl.t;
-      ahw_color: (state, int) Hashtbl.t;
+      ahw_final: (state, unit) Hashtbl.t;
+      ahw_stratum: (state, stratum) Hashtbl.t;
+      ahw_strata: (stratum, strat_kind) Hashtbl.t;
       ahw_false: state;
       ahw_true: state;
     }
 
   type ahw = state
 
-  type t =
-    {ahw_regular: ahw;
-     ahw_dual: ahw;
-    }
+  type t = ahw
 
-  (* Inisialization function *)
+  (* Initialization function *)
   let init bddmgr =
     let cuddmgr = bddmgr.Bdd.bdd_mgr in
     let delta = Hashtbl.create 8 in
-    let color = Hashtbl.create 8 in
+    let final = Hashtbl.create 8 in
+    let stratum = Hashtbl.create 8 in
+    let strata = Hashtbl.create 8 in
     let _false = 0 in
     let _true = 1 in
     Hashtbl.add delta _false (Label.dfalse);
-    Hashtbl.add color _false 0;
+    Hashtbl.add stratum _false 0;
+    Hashtbl.add strata 0 SReject;
     Hashtbl.add delta _true (Label.dtrue);
-    Hashtbl.add color _true 0;
+    Hashtbl.add stratum _true 1;
+    Hashtbl.add strata 1 SAccept;
+
     {
       ahw_bddmgr = bddmgr;
       ahw_delta = delta;
-      ahw_color = color;
+      ahw_final = final;
+      ahw_stratum = stratum;
+      ahw_strata = strata;
       ahw_false = _false;
       ahw_true = _true;
     }
@@ -118,8 +126,22 @@ struct
     try Hashtbl.find mgr.ahw_delta q
     with _ -> failwith ("ahw_of_nfa_exist_fuse_power"^string_of_int q)
   let set_delta mgr q succ = Hashtbl.add mgr.ahw_delta q succ
-  let get_color mgr q = Hashtbl.find mgr.ahw_color q
-  let set_color mgr q c = Hashtbl.add mgr.ahw_color q c
+
+  let is_final mgr q =
+    try Hashtbl.find mgr.ahw_final q; true
+    with Not_found -> false
+  let set_final mgr q = Hashtbl.add mgr.ahw_final q ()
+
+  let stratum_number = ref (1)
+  let new_stratum () = incr stratum_number; !stratum_number
+  let get_stratum mgr q = Hashtbl.find mgr.ahw_stratum q
+  let set_stratum mgr q h = Hashtbl.replace mgr.ahw_stratum q h
+
+  let get_stratum_kind mgr h = Hashtbl.find mgr.ahw_strata h
+  let set_stratum_kind mgr h k = Hashtbl.replace mgr.ahw_strata h k
+
+  let get_stratum_states mgr h =
+    Hashtbl.fold (fun q s qs -> if h = s then q::qs else qs) mgr.ahw_stratum []
 
   (** Simplifies the alternating automata *)
   (*XXX must be improved entirely!! *)
@@ -200,7 +222,7 @@ struct
 
 
   let simplify2 mgr x =
-    Printf.fprintf stderr "simplifying ahw node %d\n" x;
+    (*Printf.fprintf stderr "simplifying ahw node %d\n" x;*)
     let dep = Hashtbl.create 8 in
     let waiting = Queue.create () in
 
@@ -250,7 +272,7 @@ struct
               else
                 Label.dstate k) (get_delta mgr i))) dep
       else
-        Printf.fprintf stderr "finished\n";
+        (*Printf.fprintf stderr "finished\n";*)
         finished := true
     done
 
@@ -258,73 +280,68 @@ struct
 
 
   (** Builds the bottom/top specular pair *)
-  let empty mgr =
-    { ahw_regular=mgr.ahw_false; ahw_dual=mgr.ahw_true }
-
-  (** Flips the specular pair *)
-  let negate {ahw_regular=regular; ahw_dual=dual} =
-    {ahw_regular=dual; ahw_dual=regular;}
+  let bottom mgr = mgr.ahw_false
+  let top mgr = mgr.ahw_true
 
   (** Builds the accepting/rejecting specular pair of a letter. *)
   let letter mgr b =
-    if Label.is_true b then negate (empty mgr)
-    else if Label.is_false b then empty mgr
+    if Label.is_true b then top mgr
+    else if Label.is_false b then bottom mgr
     else begin
-      let q,q' = new_state(), new_state() in
+      let q = new_state() in
+      let h = new_stratum() in
       (* Set regular *)
       set_delta mgr q b;
-      set_color mgr q 0;
-      (* Set dual *)
-      set_delta mgr q' (Label.dnot b);
-      set_color mgr q' 0;
-
-      { ahw_regular=q; ahw_dual=q'; }
+      set_stratum mgr q h;
+      set_stratum_kind mgr h SReject;
+      q
     end
 
-  (** Builds the disjunction and its dual of two AHWs *)
-  let disj mgr pair1 pair2 =
+  (** Builds the disjunction of two AHWs *)
+  let disj mgr x y =
     (* Printf.fprintf stderr "Disjunction... %!"; *)
-    let dp1r = get_delta mgr pair1.ahw_regular in
-    let dp2r = get_delta mgr pair2.ahw_regular in
-    if Label.is_true dp1r || Label.is_true dp2r then
-      negate (empty mgr)
-    else if Label.is_false dp1r then
-      pair2
-    else if Label.is_false dp2r then
-      pair1
+    let dx = get_delta mgr x in
+    let dy = get_delta mgr y in
+    if Label.is_true dx || Label.is_true dy then
+      top mgr
+    else if Label.is_false dx then
+      y
+    else if Label.is_false dy then
+      x
     else begin
       (*Printf.fprintf stderr "(regular... %!";*)
       (* Create the new state for regular *)
-      let q = new_state () in
+      let q = new_state() in
+      let h = new_stratum() in
       (* Build the transition *)
-      let succ1 = get_delta mgr pair1.ahw_regular in
-      let succ2 = get_delta mgr pair2.ahw_regular in
-      set_delta mgr q (Label.simplify (Label.dor succ1 succ2));
-      set_color mgr q 1;
-      (*Printf.fprintf stderr "done) %!";*)
-
-      (* Create the new state for dual *)
-      (*Printf.fprintf stderr "(dual... %!";*)
-      let q' = new_state () in
-      (* Build the transition *)
-      let succ1' = get_delta mgr pair1.ahw_dual in
-      let succ2' = get_delta mgr pair2.ahw_dual in
-      set_delta mgr q' (Label.simplify (Label.dand succ1' succ2'));
-      set_color mgr q' 1;
-      (*Printf.fprintf stderr "done) %!";*)
-      (*
-      simplify mgr q;
-      simplify mgr q';
-    *)
-      (* Build the specular pair *)
-      (*Printf.fprintf stderr " done\n%!";*)
-      { ahw_regular = q; ahw_dual = q' }
+      set_delta mgr q (Label.simplify (Label.dor dx dy));
+      set_stratum mgr q h;
+      set_stratum_kind mgr h SReject;
+      q
     end
 
-  (** Builds the conjunction and its dual of two AHWs *)
-  let conj mgr pair1 pair2 =
-    negate (disj mgr (negate pair1) (negate pair2))
-
+  (** Builds the conjunction of two AHWs *)
+  let conj mgr x y =
+    (* Printf.fprintf stderr "Disjunction... %!"; *)
+    let dx = get_delta mgr x in
+    let dy = get_delta mgr y in
+    if Label.is_false dx || Label.is_false dy then
+      top mgr
+    else if Label.is_true dx then
+      y
+    else if Label.is_true dy then
+      x
+    else begin
+      (*Printf.fprintf stderr "(regular... %!";*)
+      (* Create the new state for regular *)
+      let q = new_state() in
+      let h = new_stratum() in
+      (* Build the transition *)
+      set_delta mgr q (Label.simplify (Label.dand dx dy));
+      set_stratum mgr q h;
+      set_stratum_kind mgr h SReject;
+      q
+    end
 
   (** Builds an AHW representing an existential NFA for fusion. *)
   let ahw_of_nfa_exist mgr nfa next =
@@ -340,6 +357,10 @@ struct
       if si = mgr.ahw_true then Label.dtrue
       else Label.dstate (state i)
     in
+
+    (* Create the rejecting stratum *)
+    let h = new_stratum() in
+    set_stratum_kind mgr h SReject;
 
     let next = next (state nfa_start) in
 
@@ -358,7 +379,7 @@ struct
           ) nfa_delta.(i) Label.dfalse
         in
         set_delta mgr (state i) (Label.simplify next_cond);
-        set_color mgr (state i) 1
+        set_stratum mgr (state i) h
       end
     done;
     state nfa_start
@@ -378,6 +399,10 @@ struct
       else Label.dstate (state i)
     in
 
+    (* Create the accepting stratum *)
+    let h = new_stratum() in
+    set_stratum_kind mgr h SAccept;
+
     let next = next (state nfa_start) in
 
     (* Create the transitions and set the colors *)
@@ -395,82 +420,93 @@ struct
           ) nfa_delta.(i) Label.dtrue
         in
         set_delta mgr (state i) (Label.simplify next_cond);
-        set_color mgr (state i) 0
+        set_stratum mgr (state i) h
       end
     done;
     state nfa_start
 
   (** Builds the existential sequence of an NFA and an AHW *)
-  let concat mgr nfa pair =
-    let succ_pr = get_delta mgr pair.ahw_regular in
-    let succ_pd = get_delta mgr pair.ahw_dual in
+  let concat mgr nfa x =
+    let dx = get_delta mgr x in
 
-    if nfa = Nfa.nfa_false || Label.is_false succ_pr then empty mgr
+    if nfa = Nfa.nfa_false || Label.is_false dx then
+      bottom mgr
     else begin
-      let succpr,succpd =
-        if Label.is_true succ_pr then
-          Label.dtrue, Label.dfalse
-        else Label.dstate pair.ahw_regular, Label.dstate pair.ahw_dual
+      let succ =
+        if Label.is_true dx then Label.dtrue
+        else Label.dstate x
       in
-      let regular = ahw_of_nfa_exist mgr nfa (fun _ -> succpr) in
-      let dual = ahw_of_nfa_univ mgr nfa (fun _ -> succpd) in
+      let q = ahw_of_nfa_exist mgr nfa (fun _ -> succ) in
 
-      if nfa.Nfa.nfa_final.(nfa.Nfa.nfa_start) then begin
-        set_delta mgr regular (Label.dor succ_pr (get_delta mgr regular));
-        set_delta mgr dual (Label.dand succ_pd (get_delta mgr dual))
-      end;
+      if nfa.Nfa.nfa_final.(nfa.Nfa.nfa_start) then
+        set_delta mgr q (Label.dor succ (get_delta mgr q));
 
-      simplify2 mgr regular;
-      simplify2 mgr dual;
-
-      {
-        ahw_regular = regular;
-        ahw_dual = dual;
-      }
+      simplify2 mgr q;
+      q
     end
 
   (** Builds the universal sequence of an NFA and an AHW *)
-  let univ_concat mgr nfa pair =
-    negate (concat mgr nfa (negate pair))
+  let univ_concat mgr nfa x =
+    let dx = get_delta mgr x in
+
+    if nfa = Nfa.nfa_false || Label.is_true dx then
+      top mgr
+    else begin
+      let succ =
+        if Label.is_false dx then Label.dfalse
+        else Label.dstate x
+      in
+      let q = ahw_of_nfa_univ mgr nfa (fun _ -> succ) in
+
+      if nfa.Nfa.nfa_final.(nfa.Nfa.nfa_start) then
+        set_delta mgr q (Label.dand succ (get_delta mgr q));
+
+      simplify2 mgr q;
+      q
+    end
 
   (* Builds the existential sequence of an NFA and an AHW with overlap *)
-  let fusion mgr nfa pair =
-    let succ_pr = get_delta mgr pair.ahw_regular in
-    let succ_pd = get_delta mgr pair.ahw_dual in
+  let fusion mgr nfa x =
+    let dx = get_delta mgr x in
 
-    if nfa = Nfa.nfa_false || Label.is_false succ_pr then empty mgr
+    if nfa = Nfa.nfa_false || Label.is_false dx then
+      bottom mgr
     else begin
-      let succ_pr,succ_pd =
-        if Label.is_true succ_pr then
-          Label.dtrue, Label.dfalse
-        else succ_pr,succ_pd
+      let succ =
+        if Label.is_true dx then Label.dtrue
+        else dx
       in
-      let regular = ahw_of_nfa_exist mgr nfa (fun _ -> succ_pr) in
-      let dual = ahw_of_nfa_univ mgr nfa (fun _ -> succ_pd) in
+      let q = ahw_of_nfa_exist mgr nfa (fun _ -> succ) in
 
-      simplify2 mgr regular;
-      simplify2 mgr dual;
-
-      {
-        ahw_regular = regular;
-        ahw_dual = dual;
-      }
+      simplify2 mgr q;
+      q
     end
 
   (** Builds the universal sequence of an NFA and an AHW with overlap *)
-  let univ_fusion mgr nfa pair =
-    negate (fusion mgr nfa (negate pair))
+  let univ_fusion mgr nfa x =
+    let dx = get_delta mgr x in
+
+    if nfa = Nfa.nfa_false || Label.is_true dx then
+      top mgr
+    else begin
+      let succ =
+        if Label.is_false dx then Label.dfalse
+        else dx
+      in
+      let q = ahw_of_nfa_univ mgr nfa (fun _ -> succ) in
+
+      simplify2 mgr q;
+      q
+    end
 
   let power mgr x r y =
-    let succ_xr = get_delta mgr x.ahw_regular in
-    let succ_xd = get_delta mgr x.ahw_dual in
-    let succ_yr = get_delta mgr y.ahw_regular in
-    let succ_yd = get_delta mgr y.ahw_dual in
+    let dx = get_delta mgr x in
+    let dy = get_delta mgr y in
 
-    if r = Nfa.nfa_false || Label.is_false succ_xr then y
-    else if Label.is_true succ_yr then negate (empty mgr)
+    if r = Nfa.nfa_false || Label.is_false dx then y
+    else if Label.is_true dy then top mgr
     else begin
-      (* Create the new state for regular *)
+      (* Create the new state *)
       let q = new_state () in
 
       (* Build the transition *)
@@ -478,43 +514,68 @@ struct
 
       (* Build and set successors for q *)
       let delta_q =
-        Label.dor succ_yr (Label.dand succ_xr (get_delta mgr r')) in
+        Label.dor dy (Label.dand dx (get_delta mgr r')) in
       set_delta mgr q delta_q;
-      set_color mgr q 1;
 
-      (* Create the new state for dual *)
-      let q' = new_state () in
+      (* Add q to the new stratum *)
+      set_stratum mgr q (get_stratum mgr r');
 
-      (* Build the transition *)
-      let r' = ahw_of_nfa_univ mgr r (fun _ -> Label.dstate q') in
-
-      (* Build and set successors for q' *)
-      let delta_q' =
-        Label.dand succ_yd (Label.dor succ_xd (get_delta mgr r')) in
-      set_delta mgr q' delta_q';
-      set_color mgr q' 0;
-
-      (* Build the specular pair *)
-      { ahw_regular = q; ahw_dual = q' }
+      q
     end
 
-
   let dual_power mgr x r y =
-    negate (power mgr (negate x) r (negate y))
+    let dx = get_delta mgr x in
+    let dy = get_delta mgr y in
+
+    if r = Nfa.nfa_false || Label.is_true dx then y
+    else if Label.is_false dy then bottom mgr
+    else begin
+      (* Create the new state *)
+      let q = new_state () in
+
+      (* Build the transition *)
+      let r' = ahw_of_nfa_univ mgr r (fun _ -> Label.dstate q) in
+
+      (* Build and set successors for q *)
+      let delta_q =
+        Label.dand dy (Label.dor dx (get_delta mgr r')) in
+      set_delta mgr q delta_q;
+
+      (* Add q to the new stratum *)
+      set_stratum mgr q (get_stratum mgr r');
+
+      q
+    end
 
   let weak_power mgr x r y =
     if r.Nfa.nfa_final.(r.Nfa.nfa_start) then disj mgr x y
     else begin
-      let {ahw_regular; ahw_dual} = power mgr x r y in
-      set_color mgr ahw_regular 2;
-      set_color mgr ahw_dual 1;
-      { ahw_regular; ahw_dual }
+      (* Compute the automaton *)
+      let q = power mgr x r y in
+
+      (* Set its initial state as accepting *)
+      set_final mgr q;
+
+      (* Set the stratum as Buchi *)
+      set_stratum_kind mgr (get_stratum mgr q) SBuchi;
+
+      q
     end
 
   let dual_weak_power mgr x r y =
-    negate (weak_power mgr (negate x) r (negate y))
+    if r.Nfa.nfa_final.(r.Nfa.nfa_start) then disj mgr x y
+    else begin
+      (* Compute the automaton *)
+      let q = dual_power mgr x r y in
 
+      (* Set its initial state as rejecting *)
+      set_final mgr q;
 
+      (* Set the stratum as CoBuchi *)
+      set_stratum_kind mgr (get_stratum mgr q) SCoBuchi;
+
+      q
+    end
 
   (** Builds an AHW representing an existential NFA for power fusion. *)
   let ahw_of_nfa_exist_fuse_power kind mgr nfa next =
@@ -529,6 +590,9 @@ struct
       if si = mgr.ahw_true then Label.dtrue
       else Label.dstate (state i)
     in
+
+    (* Create a new stratum *)
+    let h = new_stratum() in
 
     (* Tells if a state is final and have no successors *)
     let totally_final i = nfa_final.(i) && nfa_delta.(i) = [] in
@@ -574,10 +638,10 @@ struct
           ) nfa_delta.(i) Label.dfalse
         in
         set_delta mgr (state i) (Label.simplify next_cond);
-        set_color mgr (state i) 1
+        set_stratum mgr (state i) h
       end
     done;
-    start_trans
+    h, start_trans
 
 
 (** Builds an AHW representing an universal NFA for power fusion. *)
@@ -593,6 +657,9 @@ struct
       if si = mgr.ahw_false then Label.dfalse
       else Label.dstate (state i)
     in
+
+    (* Create a new stratum *)
+    let h = new_stratum() in
 
     (* Tells if a state is final and have no successors *)
     let totally_final i = nfa_final.(i) && nfa_delta.(i) = [] in
@@ -638,147 +705,186 @@ struct
           ) nfa_delta.(i) Label.dtrue
         in
         set_delta mgr (state i) (Label.simplify next_cond);
-        set_color mgr (state i) 0
+        set_stratum mgr (state i) h
       end
     done;
-    start_trans
+    h, start_trans
 
   let power_fusion mgr x r y =
-    let succ_xr = get_delta mgr x.ahw_regular in
-    let succ_xd = get_delta mgr x.ahw_dual in
-    let succ_yr = get_delta mgr y.ahw_regular in
-    let succ_yd = get_delta mgr y.ahw_dual in
+    let dx = get_delta mgr x in
+    let dy = get_delta mgr y in
 
-    if r = Nfa.nfa_false || Label.is_false succ_xr then y
-    else if Label.is_true succ_yr then negate (empty mgr)
+    if r = Nfa.nfa_false || Label.is_false dx then y
+    else if Label.is_true dy then top mgr
     else begin
       (* Create the new state for regular *)
       let q = new_state () in
 
       (* Build the transition *)
-      let next d = Label.dor succ_yr (Label.dand succ_xr d) in
-      let succ_r = ahw_of_nfa_exist_fuse_power `Regular mgr r next in
+      let next d = Label.dor dy (Label.dand dy d) in
+      let h, dr = ahw_of_nfa_exist_fuse_power `Regular mgr r next in
 
       (* Build and set successors for q *)
-      let delta_q = next succ_r in
+      let delta_q = next dr in
       set_delta mgr q delta_q;
-      set_color mgr q 1;
 
-      (* Create the new state for dual *)
-      let q' = new_state () in
+      (* Set the new stratum as Rejecting *)
+      set_stratum_kind mgr h SReject;
 
-      (* Build the transition *)
-      let next d = Label.dand succ_yd (Label.dor succ_xd d) in
-      let succ_r' = ahw_of_nfa_univ_fuse_power `Regular mgr r next in
-
-      (* Build and set successors for q' *)
-      let delta_q' = next succ_r'  in
-      set_delta mgr q' delta_q';
-      set_color mgr q' 0;
-
-      (* Build the specular pair *)
-      { ahw_regular = q; ahw_dual = q' }
+      q
     end
 
   let dual_power_fusion mgr x r y =
-    negate (power_fusion mgr (negate x) r (negate y))
+    let dx = get_delta mgr x in
+    let dy = get_delta mgr y in
 
-  let weak_power_fusion mgr x r y =
-    let succ_xr = get_delta mgr x.ahw_regular in
-    let succ_xd = get_delta mgr x.ahw_dual in
-    let succ_yr = get_delta mgr y.ahw_regular in
-    let succ_yd = get_delta mgr y.ahw_dual in
-
-    if r = Nfa.nfa_false || Label.is_false succ_xr then y
-    else if Label.is_true succ_yr then negate (empty mgr)
+    if r = Nfa.nfa_false || Label.is_true dx then y
+    else if Label.is_false dy then bottom mgr
     else begin
       (* Create the new state for regular *)
       let q = new_state () in
 
       (* Build the transition *)
-      let next d = Label.dor succ_yr (Label.dand succ_xr d) in
-      let succ_r = ahw_of_nfa_exist_fuse_power `Weak mgr r next in
+      let next d = Label.dand dy (Label.dor dy d) in
+      let h, dr = ahw_of_nfa_univ_fuse_power `Regular mgr r next in
 
       (* Build and set successors for q *)
-      let delta_q = next succ_r in
+      let delta_q = next dr in
       set_delta mgr q delta_q;
-      set_color mgr q 1;
 
-      (* Create the new state for dual *)
-      let q' = new_state () in
+      (* Set the new stratum as Accepting *)
+      set_stratum_kind mgr h SAccept;
+
+      q
+    end
+
+  let weak_power_fusion mgr x r y =
+    let dx = get_delta mgr x in
+    let dy = get_delta mgr y in
+
+    if r = Nfa.nfa_false || Label.is_false dx then y
+    else if Label.is_true dy then top mgr
+    else begin
+      (* Create the new state for regular *)
+      let q = new_state () in
 
       (* Build the transition *)
-      let next d = Label.dand succ_yd (Label.dor succ_xd d) in
-      let succ_r' = ahw_of_nfa_univ_fuse_power `Weak mgr r next in
+      let next d = Label.dor dy (Label.dand dx d) in
+      let h, dr = ahw_of_nfa_exist_fuse_power `Weak mgr r next in
 
-      (* Build and set successors for q' *)
-      let delta_q' = next succ_r'  in
-      set_delta mgr q' delta_q';
-      set_color mgr q' 0;
+      (* Build and set successors for q *)
+      let delta_q = next dr in
+      set_delta mgr q delta_q;
 
-      (* Build the specular pair *)
-      { ahw_regular = q; ahw_dual = q' }
+      (* Set its initial state as accepting *)
+      set_final mgr q;
+
+      (* Set the stratum as Buchi *)
+      set_stratum_kind mgr h SBuchi;
+
+      q
     end
 
   let dual_weak_power_fusion mgr x r y =
-    negate (weak_power_fusion mgr (negate x) r (negate y))
+    let dx = get_delta mgr x in
+    let dy = get_delta mgr y in
+
+    if r = Nfa.nfa_false || Label.is_true dx then y
+    else if Label.is_false dy then top mgr
+    else begin
+      (* Create the new state for regular *)
+      let q = new_state () in
+
+      (* Build the transition *)
+      let next d = Label.dand dy (Label.dor dx d) in
+      let h, dr = ahw_of_nfa_univ_fuse_power `Weak mgr r next in
+
+      (* Build and set successors for q *)
+      let delta_q = next dr in
+      set_delta mgr q delta_q;
+
+      (* Set its initial state as rejecting *)
+      set_final mgr q;
+
+      (* Set the stratum as CoBuchi *)
+      set_stratum_kind mgr h SCoBuchi;
+
+      q
+    end
 
   let closure mgr nfa =
-    if nfa = Nfa.nfa_false then empty mgr
+    if nfa = Nfa.nfa_false then bottom mgr
     else begin
       let {Nfa.nfa_delta; nfa_start; nfa_final} = nfa in
       let n = Nfa.size nfa in
 
-      (* Regular *)
       let state_map = Array.init n (fun i ->
-        if nfa_delta.(i) != [] then new_state () else mgr.ahw_false) in
+        if nfa_final.(i) then mgr.ahw_true
+        else if nfa_delta.(i) = [] then mgr.ahw_false
+        else new_state ()) in
 
       let state i = state_map.(i) in
       let lstate i =
         let si = state i in
-        if si = mgr.ahw_false then Label.dfalse
+        if si = mgr.ahw_true then Label.dtrue
+        else if si = mgr.ahw_false then Label.dfalse
         else Label.dstate (state i)
       in
 
+      (* Create the new accepting stratum *)
+      let h = new_stratum() in
+      set_stratum_kind mgr h SAccept;
+
       (* Create the transitions and set the colors *)
       for i=0 to n-1 do
-        if state i != mgr.ahw_false then begin
+        if state i != mgr.ahw_true && state i != mgr.ahw_false then begin
           let succ =
             List.fold_right (fun (b,j) s ->
               Label.dor (Label.dand b (lstate j)) s
             ) nfa_delta.(i) Label.dfalse
           in
           set_delta mgr (state i) (Label.simplify succ);
-          set_color mgr (state i) 0
+          set_stratum mgr (state i) h
         end
       done;
-      let ahw_regular = state nfa_start in
+      state nfa_start
+    end
 
-      (* Dual *)
+  let dual_closure mgr nfa =
+    if nfa = Nfa.nfa_false then top mgr
+    else begin
+      let {Nfa.nfa_delta; nfa_start; nfa_final} = nfa in
+      let n = Nfa.size nfa in
+
       let state_map = Array.init n (fun i ->
-        if nfa_delta.(i) != [] then new_state () else mgr.ahw_true) in
+        if nfa_final.(i) then mgr.ahw_false
+        else if nfa_delta.(i) = [] then mgr.ahw_true
+        else new_state ()) in
 
       let state i = state_map.(i) in
       let lstate i =
         let si = state i in
-        if si = mgr.ahw_true then Label.dtrue
+        if si = mgr.ahw_false then Label.dfalse
+        else if si = mgr.ahw_true then Label.dtrue
         else Label.dstate (state i)
       in
 
+      (* Create the new rejecting stratum *)
+      let h = new_stratum() in
+      set_stratum_kind mgr h SReject;
+
       (* Create the transitions and set the colors *)
       for i=0 to n-1 do
-        if state i != mgr.ahw_true then begin
+        if state i != mgr.ahw_true && state i != mgr.ahw_false then begin
           let succ =
             List.fold_right (fun (b,j) s ->
               Label.dand (Label.dor (Label.dnot b) (lstate j)) s
             ) nfa_delta.(i) Label.dtrue
           in
-          set_delta mgr (state i) (Label.simplify succ);
-          set_color mgr (state i) 1
+          set_delta mgr (state i) succ; (*(Label.simplify succ)*);
+          set_stratum mgr (state i) h
         end
       done;
-      let ahw_dual = state nfa_start in
-
-      disj mgr (concat mgr nfa (negate (empty mgr))) {ahw_regular;ahw_dual}
+      state nfa_start
     end
 end

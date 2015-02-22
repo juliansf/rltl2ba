@@ -62,7 +62,7 @@ module Options = Main_args.Make_rltlba_options(struct
   let _nfa = set_kind (nfa,ahw)
   let _o s = output_name := Some s
   let _psl = (fun _ -> Printf.fprintf stderr "setting psl...\n"; set psl ())
-  let _s = (fun s -> Printf.fprintf stderr "reading %s...\n" s;str s)
+  let _s = (fun s -> str s)
 (*  let _stdin () = set use_stdin *)
   let _verbose n = verbose := n
   let _version = print_version_string
@@ -77,7 +77,6 @@ let main () =
     Arg.parse Options.list anon usage;
     exit 0
   with e ->
-    Printf.printf "LO QUE?";
     Errors.report_error ppf e;
     exit 2
 

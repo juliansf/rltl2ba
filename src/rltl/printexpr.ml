@@ -18,6 +18,10 @@ let fmt_power_flag f = function
   | DualPower -> Format.fprintf f "Dual"
   | DualWeakPower -> Format.fprintf f "DualWeak"
 
+let fmt_closure_flag f = function
+  | Positive -> Format.fprintf f "Positive"
+  | Negative -> Format.fprintf f "Negative"
+
 let node_id = Expgen.node_id
 
 let line i f s =
@@ -104,7 +108,7 @@ let rec print_rltl mgr i ppf node =
     print_rltl mgr i ppf nx;
     print_rltl mgr i ppf ny;
     print_regex mgr i ppf nr
-  | RltlClosure (n) -> line i ppf "RltlClosure\n";
+  | RltlClosure (cfl, n) -> line i ppf "RltlClosure %a\n" fmt_closure_flag cfl;
     print_regex mgr i ppf n
 
 let print_node mgr ppf node =
@@ -162,7 +166,9 @@ let print_rltl_expr ppf = function
     Format.fprintf ppf "RltlPower(%a,%a,x:%d,y:%d,r:%d)"
       fmt_power_flag pfl fmt_overlap_flag ofl
       (node_id nx) (node_id ny) (node_id nr)
-  | RltlClosure (n) -> Format.fprintf ppf "RltlClosure(%d)" (node_id n)
+  | RltlClosure (cfl, n) ->
+    Format.fprintf ppf "RltlClosure(%a,%d)"
+      fmt_closure_flag cfl (node_id n)
 
 let print_expr i ppf {exp_bool;exp_regex;exp_rltl} =
   let pp_option f ppf = function

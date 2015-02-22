@@ -8,30 +8,28 @@ module type S = sig
 
   type state = int
   type trans = Nfa.Label.t
-
-  type strata = SAccept | SReject | SBuchi | SCoBuchi
+  type stratum = int
+  type strat_kind = SAccept | SReject | SBuchi | SCoBuchi
 
   type manager =
     { ahw_bddmgr: Bdd.manager;
       ahw_delta: (state, trans) Hashtbl.t;
-      ahw_color: (state, int) Hashtbl.t;
-      (*ahw_strata: (int, strata) Hashtbl.t;*)
+      ahw_final: (state, unit) Hashtbl.t;
+      ahw_stratum: (state, stratum) Hashtbl.t;
+      ahw_strata: (stratum, strat_kind) Hashtbl.t;
       ahw_false: state;
       ahw_true: state;
     }
 
   type ahw = state
 
-  type t =
-    {ahw_regular: ahw;
-     ahw_dual: ahw;
-    }
+  type t = ahw
 
   val init: Bdd.manager -> manager
 
-  val empty: manager -> t
+  val bottom: manager -> t
+  val top: manager -> t
   val letter: manager -> Nfa.label -> t
-  val negate: t -> t
   val disj: manager -> t -> t -> t
   val conj: manager -> t -> t -> t
   val concat: manager -> Nfa.t -> t -> t
@@ -47,6 +45,7 @@ module type S = sig
   val weak_power_fusion: manager -> t -> Nfa.t -> t -> t
   val dual_weak_power_fusion: manager -> t -> Nfa.t -> t -> t
   val closure: manager -> Nfa.t -> t
+  val dual_closure: manager -> Nfa.t -> t
 
   (*val simplify: manager -> t -> unit*)
 
@@ -56,16 +55,15 @@ module type S = sig
   *)
 
   (* Auxiliary functions *)
+  val is_final: manager -> state -> bool
   val get_delta: manager -> state -> trans
-  val get_color: manager -> state -> int
+  val get_stratum: manager -> state -> stratum
+  val get_stratum_kind: manager -> stratum -> strat_kind
+  val get_stratum_states: manager -> stratum -> state list
 end
 
 
 module Make(N : Nfa.S) : S with module Nfa = N
-
-
-
-
 
 
 

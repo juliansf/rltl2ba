@@ -99,10 +99,10 @@ let rec get_label mgr node =
 
 (** Translate a regex expression into an NFA, if needed *)
 let rec get_nfa mgr node =
-  Printf.fprintf stderr "Getting NFA for node %d... %!" node;
+  (*Printf.fprintf stderr "Getting NFA for node %d... %!" node;*)
   (* Check if node is already translated *)
   if Hashtbl.mem mgr.aut_nfa node then begin
-    Printf.fprintf stderr "done (cached)\n%!";
+    (*Printf.fprintf stderr "done (cached)\n%!";*)
     Hashtbl.find mgr.aut_nfa node
   end
 
@@ -130,9 +130,9 @@ let rec get_nfa mgr node =
             Nfa.concat (get_nfa mgr n1) (get_nfa mgr n2)
         in
         Hashtbl.add mgr.aut_nfa node x;
-        Format.fprintf Format.err_formatter "%a\n"
+        (*Format.fprintf Format.err_formatter "%a\n"
           (Printnfa.print_nfa
-             (fun fmt l -> Format.fprintf fmt "%s" (Bool.Default.B.to_string l)))
+          (fun fmt l -> Format.fprintf fmt "%s" (Bool.Default.B.to_string l)))*)
              x;
         x
       end;
@@ -140,7 +140,6 @@ let rec get_nfa mgr node =
 
 (** Translate an rltl expression into an AHW, if needed *)
 let rec get_ahw ?simpl:(simpl=false) mgr node =
-  Printf.fprintf stderr "Getting AHW for node %d... \n%!" node;
   (* Check if node is already translated *)
   if Hashtbl.mem mgr.aut_ahw node then
     Hashtbl.find mgr.aut_ahw node
@@ -158,10 +157,11 @@ let rec get_ahw ?simpl:(simpl=false) mgr node =
     | Some r ->
       begin
         let rho = match r with
-          | RltlTrue -> Ahw.negate (Ahw.empty amgr)
-          | RltlFalse -> Ahw.empty amgr
+          | RltlTrue -> Ahw.top amgr
+          | RltlFalse -> Ahw.bottom amgr
           | RltlProp n -> Ahw.letter amgr (get_label mgr n)
-          | RltlNot n -> Ahw.negate (get_ahw mgr n)
+          | RltlNot n -> failwith "__file__:__line__: [internal error] cannot ocurr."
+            (*Ahw.negate (get_ahw mgr n)*)
           | RltlOr (n1,n2) -> Ahw.disj amgr (get_ahw mgr n1) (get_ahw mgr n2)
           | RltlAnd (n1,n2) -> Ahw.conj amgr (get_ahw mgr n1) (get_ahw mgr n2)
           | RltlSeq (kind, olap, nr, nx) ->
@@ -193,7 +193,12 @@ let rec get_ahw ?simpl:(simpl=false) mgr node =
               in
               f amgr x r y
             end
-          | RltlClosure n -> Ahw.closure amgr (get_nfa mgr n)
+          | RltlClosure (cfl, n) ->
+            begin
+              match cfl with
+              | Positive -> Ahw.closure amgr (get_nfa mgr n)
+              | Negative -> Ahw.dual_closure amgr (get_nfa mgr n)
+            end
         in
         (*if simpl then Ahw.simplify amgr rho;*)
         Hashtbl.add mgr.aut_ahw node rho;
