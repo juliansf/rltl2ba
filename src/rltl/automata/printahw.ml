@@ -18,7 +18,7 @@ let stratum_color mgr h =
   | SCoBuchi -> "#DADADA"
 
 
-let state_names = Hashtbl.create 8
+let state_names : (state,state) Hashtbl.t = Hashtbl.create 8
 let state_count = ref (-1)
 let strata_names = Hashtbl.create 8
 let strata_count = ref(-1)
@@ -37,7 +37,7 @@ let rename names count i =
     !count
   end
 
-let rename_state = rename state_names state_count
+let rename_state i = i (*rename state_names state_count*)
 let rename_stratum = rename strata_names strata_count
 
 

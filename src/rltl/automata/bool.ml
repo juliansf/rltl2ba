@@ -138,7 +138,8 @@ let rec to_string = function
 
         | `Arrow(l,i), `AndArrow(l',xs)
         | `AndArrow(l',xs), `Arrow(l,i) ->
-          `AndArrow(dand l l', `Arrow(True,i)::xs)
+          let xs' = if i = True then xs else `Arrow(True,i)::xs in
+          `AndArrow(dand l l', xs')
 
         | `Arrow(l,i), `OrArrow xs
         | `OrArrow xs, `Arrow(l,i) ->
