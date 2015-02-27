@@ -159,8 +159,19 @@ let rec to_string = function
       begin
         match classify x, classify y with
         | `Arrow(l,i), `Arrow(l',j)  ->
-          if i=j then `Arrow(dand l l',i)
+          if i=j then `Arrow(dor l l',i)
           else `OrArrow [`Arrow(l,i);`Arrow(l',j)]
+
+        | `Arrow(l,i), `OrArrow xs
+        | `OrArrow xs, `Arrow(l,i) ->
+          (*if i=True then
+            let xs' = List.map (fun x ->
+              match x with
+              |
+            ) xs in
+            `OrArrow xs'
+            else*)
+            `OrArrow (`Arrow(l,i)::xs)
 
         | `OrArrow xs, `OrArrow xs' -> `OrArrow(xs@xs')
 

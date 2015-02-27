@@ -169,6 +169,13 @@ let ahw2dot mgr fmt ahw =
       Ahw.Nfa.Label.dstate (rename_state i)) (get_delta mgr q) in
 
     (* Print the condition *)
+
+    (*
+    Printf.eprintf "cond = %s -> %s\n"
+      (Ahw.Nfa.Label.to_string delta)
+      (Ahw.Nfa.Label.string_of_classified (Ahw.Nfa.Label.classify delta));
+    *)
+
     Format.fprintf fmt "%a" (print_class (string_of_int i))
       (Ahw.Nfa.Label.classify delta);
 

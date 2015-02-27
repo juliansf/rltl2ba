@@ -17,6 +17,7 @@ module type S = sig
       ahw_final: (state, unit) Hashtbl.t;
       ahw_stratum: (state, stratum) Hashtbl.t;
       ahw_strata: (stratum, strat_kind) Hashtbl.t;
+      ahw_simplified: (state, unit) Hashtbl.t;
       ahw_false: state;
       ahw_true: state;
     }
@@ -85,6 +86,7 @@ struct
       ahw_final: (state, unit) Hashtbl.t;
       ahw_stratum: (state, stratum) Hashtbl.t;
       ahw_strata: (stratum, strat_kind) Hashtbl.t;
+      ahw_simplified: (state, unit) Hashtbl.t;
       ahw_false: state;
       ahw_true: state;
     }
@@ -100,6 +102,7 @@ struct
     let final = Hashtbl.create 8 in
     let stratum = Hashtbl.create 8 in
     let strata = Hashtbl.create 8 in
+    let simpl = Hashtbl.create 8 in
     let _false = 0 in
     let _true = 1 in
     Hashtbl.add delta _false (Label.dfalse);
@@ -115,6 +118,7 @@ struct
       ahw_final = final;
       ahw_stratum = stratum;
       ahw_strata = strata;
+      ahw_simplified = simpl;
       ahw_false = _false;
       ahw_true = _true;
     }
@@ -127,9 +131,7 @@ struct
     with _ -> failwith ("ahw_of_nfa_exist_fuse_power"^string_of_int q)
   let set_delta mgr q succ = Hashtbl.add mgr.ahw_delta q succ
 
-  let is_final mgr q =
-    try Hashtbl.find mgr.ahw_final q; true
-    with Not_found -> false
+  let is_final mgr q = Hashtbl.mem mgr.ahw_final q
   let set_final mgr q = Hashtbl.add mgr.ahw_final q ()
 
   let stratum_number = ref (1)
@@ -143,141 +145,70 @@ struct
   let get_stratum_states mgr h =
     Hashtbl.fold (fun q s qs -> if h = s then q::qs else qs) mgr.ahw_stratum []
 
-  (** Simplifies the alternating automata *)
-  (*XXX must be improved entirely!! *)
-(*
-  let simplify mgr ahw =
-    let delta :(state,trans) Hashtbl.t= mgr.ahw_delta in
-    (*let color = mgr.ahw_color in*)
+  let is_simplified mgr q = Hashtbl.mem mgr.ahw_simplified q
+  let set_simplified mgr q = Hashtbl.add mgr.ahw_simplified q ()
 
-    if Label.is_true (get_delta mgr ahw.ahw_regular) then
-      Hashtbl.replace delta ahw.ahw_regular Label.dtrue
-    else if Label.is_false (get_delta mgr ahw.ahw_regular) then
-      Hashtbl.replace delta ahw.ahw_regular Label.dfalse;
-
-    if Label.is_true (get_delta mgr ahw.ahw_dual) then
-      Hashtbl.replace delta ahw.ahw_dual Label.dtrue
-    else if Label.is_false (get_delta mgr ahw.ahw_dual) then
-      Hashtbl.replace delta ahw.ahw_dual Label.dfalse;
-
-    let rd = get_delta mgr ahw.ahw_regular in
-    let dd = get_delta mgr ahw.ahw_dual in
-
-    if rd != Label.dtrue &&
-      rd != Label.dfalse &&
-      dd != Label.dtrue &&
-      dd != Label.dfalse
-    then begin
-      let del = Hashtbl.create 8 in
-      let seen = Hashtbl.create 8 in
-      let modified = Array.create (Hashtbl.length delta) true in
-      let remove_spurious (q:state) (succ:trans) =
-        if not (Hashtbl.mem seen q ||
-                  q = ahw.ahw_regular || q = ahw.ahw_dual) then
-          if Label.is_true succ then begin
-            Hashtbl.add del q Label.dtrue;
-            Hashtbl.add seen q ();
-          end
-          else if Label.is_false succ then begin
-            Hashtbl.add del q Label.dfalse;
-            Hashtbl.add seen q ();
-          end
-      (* if not (Hashtbl.mem seen q) && *)
-      (*   not (q=init) && (Label.is_true succ || Label.is_false succ) then begin *)
-      (*     Hashtbl.add del q succ; *)
-      (*     Hashtbl.add seen q (); *)
-      (*   end *)
-      in
-      Hashtbl.iter remove_spurious delta;
-
-      while Hashtbl.length del > 0 do
-      (* First pass - Remove spurious states in delta *)
-        Hashtbl.iter (fun q succ ->
-          let succ' =
-            Hashtbl.fold (fun i b c ->
-              Label.compose c b i
-            ) del succ
-          in
-          Hashtbl.replace delta q (Label.simplify succ')
-        ) delta;
-
-        Hashtbl.clear del;
-
-      (* Second pass - Recompute spurious states *)
-        Hashtbl.iter remove_spurious delta
-      done;
-
-      if Label.is_true (get_delta mgr ahw.ahw_regular) then
-        Hashtbl.replace delta ahw.ahw_regular Label.dtrue
-      else if Label.is_false (get_delta mgr ahw.ahw_regular) then
-        Hashtbl.replace delta ahw.ahw_regular Label.dfalse;
-
-      if Label.is_true (get_delta mgr ahw.ahw_dual) then
-        Hashtbl.replace delta ahw.ahw_dual Label.dtrue
-      else if Label.is_false (get_delta mgr ahw.ahw_dual) then
-        Hashtbl.replace delta ahw.ahw_dual Label.dfalse;
-    end
-*)
-
-
-
-  let simplify2 mgr x =
-    (*Printf.fprintf stderr "simplifying ahw node %d\n" x;*)
-    let dep = Hashtbl.create 8 in
+  (** Simplifies the alternating automaton *)
+  let simplify mgr x =
+    let reverse = Hashtbl.create 8 in
+    let leaves = Hashtbl.create 8 in
     let waiting = Queue.create () in
+    let visited = Hashtbl.create 8 in
 
+    let get_reverse i =
+      if not (Hashtbl.mem reverse i) then
+        Hashtbl.add reverse i (Hashtbl.create 2);
+      Hashtbl.find reverse i in
+
+    (* Compute reverse transition relation and leaves *)
     Queue.add x waiting;
-
-
-    (* Compute the dependency table *)
     while not (Queue.is_empty waiting) do
       let x = Queue.take waiting in
-      if not (Hashtbl.mem dep x) then
-        let dep_tbl = Hashtbl.create 2 in
-        Label.iter_states (fun i -> Hashtbl.add dep_tbl i ()) (get_delta mgr x);
-        Hashtbl.iter (fun i _ -> Queue.add i waiting) dep_tbl;
-        (*let lst = Hashtbl.fold (fun i _ xs -> i::xs) dep_tbl [] in*)
-        Hashtbl.add dep x dep_tbl;
+      if not (Hashtbl.mem visited x || is_simplified mgr x) then begin
+        Hashtbl.add visited x ();
+        if Label.is_true (get_delta mgr x) then
+          Hashtbl.add leaves x Label.dtrue
+        else if Label.is_false (get_delta mgr x) then
+          Hashtbl.add leaves x Label.dfalse
+        else
+          Label.iter_states (fun i ->
+            if i != x then begin
+              Queue.add i waiting;
+              Hashtbl.add (get_reverse i) x ()
+            end) (get_delta mgr x)
+      end
     done;
 
-    (* Check for those states that are true or false *)
-    let sinks d =
-      let t = Hashtbl.create 8 in
-      Hashtbl.iter (fun i idep ->
-        if Hashtbl.length idep = 0 then
-          if Label.is_true (get_delta mgr i) then begin
-            Hashtbl.add t i Label.dtrue;
-            Hashtbl.remove d i;
-          end
-          else if Label.is_false (get_delta mgr i) then begin
-            Hashtbl.add t i Label.dfalse;
-            Hashtbl.remove d i;
-          end) d;
-      t
-    in
+    (*
+      Hashtbl.iter (fun i ti ->
+        Printf.eprintf "# %d -> ( " i;
+      Hashtbl.iter (fun q _ -> Printf.eprintf "%d " q) ti;
+        Printf.eprintf ")\n";) reverse;
+      Hashtbl.iter (fun i d -> Printf.eprintf "# %d -> %s\n" i (Label.to_string d)) leaves;
+    *)
 
-    (* Remove states that are not needed *)
-    let finished = ref false in
-    while not !finished do
-      let s = sinks dep in
-      if Hashtbl.length s != 0 then
-        Hashtbl.iter (fun i idep ->
-          let idep_len = Hashtbl.length idep in
-          Hashtbl.iter (fun j _ ->
-            if Hashtbl.mem s j then Hashtbl.remove s j) idep;
-          if Hashtbl.length idep < idep_len then
-            set_delta mgr i (Label.map_states (fun k ->
-              if Hashtbl.mem s k then
-                Hashtbl.find s k
-              else
-                Label.dstate k) (get_delta mgr i))) dep
-      else
-        (*Printf.fprintf stderr "finished\n";*)
-        finished := true
+    (* Delete leaves recursively *)
+    Hashtbl.reset visited;
+    let boundary = Hashtbl.create 8 in
+    while Hashtbl.length leaves > 0 do
+      let t = Hashtbl.copy leaves in
+      Hashtbl.reset leaves;
+      Hashtbl.iter (fun i d ->
+        Hashtbl.iter (fun j _ -> Hashtbl.add boundary j ()) (get_reverse i)
+      ) t;
+      Hashtbl.iter (fun q _->
+        let mapi i = if Hashtbl.mem t i then Hashtbl.find t i else Label.dstate i in
+        let delta = Label.map_states mapi (get_delta mgr q) in
+        set_delta mgr q delta;
+        if Label.is_true delta then
+          Hashtbl.add leaves q Label.dtrue
+        else if Label.is_false delta then
+          Hashtbl.add leaves q Label.dfalse
+      ) boundary;
+      (*Hashtbl.iter (fun i d -> Printf.eprintf "%% %d -> %s\n" i (Label.to_string d)) leaves;*)
+      Hashtbl.reset boundary;
+      set_simplified mgr x
     done
-
-
-
 
   (** Builds the bottom/top specular pair *)
   let bottom mgr = mgr.ahw_false
@@ -317,6 +248,7 @@ struct
       set_delta mgr q (Label.simplify (Label.dor dx dy));
       set_stratum mgr q h;
       set_stratum_kind mgr h SReject;
+      simplify mgr q;
       q
     end
 
@@ -340,6 +272,7 @@ struct
       set_delta mgr q (Label.simplify (Label.dand dx dy));
       set_stratum mgr q h;
       set_stratum_kind mgr h SReject;
+      simplify mgr q;
       q
     end
 
@@ -432,16 +365,18 @@ struct
     if nfa = Nfa.nfa_false || Label.is_false dx then
       bottom mgr
     else begin
+      Printf.eprintf "Ahw.concat.dx(%d) = %s\n" x (Label.to_string dx);
       let succ =
         if Label.is_true dx then Label.dtrue
         else Label.dstate x
       in
+      Printf.eprintf "Ahw.concat.succ(%d) = %s\n" x (Label.to_string succ);
       let q = ahw_of_nfa_exist mgr nfa (fun _ -> succ) in
 
       if nfa.Nfa.nfa_final.(nfa.Nfa.nfa_start) then
         set_delta mgr q (Label.dor succ (get_delta mgr q));
 
-      simplify2 mgr q;
+      simplify mgr q;
       q
     end
 
@@ -461,7 +396,7 @@ struct
       if nfa.Nfa.nfa_final.(nfa.Nfa.nfa_start) then
         set_delta mgr q (Label.dand succ (get_delta mgr q));
 
-      simplify2 mgr q;
+      simplify mgr q;
       q
     end
 
@@ -478,7 +413,7 @@ struct
       in
       let q = ahw_of_nfa_exist mgr nfa (fun _ -> succ) in
 
-      simplify2 mgr q;
+      simplify mgr q;
       q
     end
 
@@ -495,7 +430,7 @@ struct
       in
       let q = ahw_of_nfa_univ mgr nfa (fun _ -> succ) in
 
-      simplify2 mgr q;
+      simplify mgr q;
       q
     end
 
@@ -520,6 +455,7 @@ struct
       (* Add q to the new stratum *)
       set_stratum mgr q (get_stratum mgr r');
 
+      simplify mgr q;
       q
     end
 
@@ -544,6 +480,7 @@ struct
       (* Add q to the new stratum *)
       set_stratum mgr q (get_stratum mgr r');
 
+      simplify mgr q;
       q
     end
 
@@ -559,6 +496,7 @@ struct
       (* Set the stratum as Buchi *)
       set_stratum_kind mgr (get_stratum mgr q) SBuchi;
 
+      simplify mgr q;
       q
     end
 
@@ -574,6 +512,7 @@ struct
       (* Set the stratum as CoBuchi *)
       set_stratum_kind mgr (get_stratum mgr q) SCoBuchi;
 
+      simplify mgr q;
       q
     end
 
@@ -731,6 +670,7 @@ struct
       (* Set the new stratum as Rejecting *)
       set_stratum_kind mgr h SReject;
 
+      simplify mgr q;
       q
     end
 
@@ -755,6 +695,7 @@ struct
       (* Set the new stratum as Accepting *)
       set_stratum_kind mgr h SAccept;
 
+      simplify mgr q;
       q
     end
 
@@ -782,6 +723,7 @@ struct
       (* Set the stratum as Buchi *)
       set_stratum_kind mgr h SBuchi;
 
+      simplify mgr q;
       q
     end
 
@@ -809,6 +751,7 @@ struct
       (* Set the stratum as CoBuchi *)
       set_stratum_kind mgr h SCoBuchi;
 
+      simplify mgr q;
       q
     end
 
@@ -847,7 +790,9 @@ struct
           set_stratum mgr (state i) h
         end
       done;
-      state nfa_start
+      let q = state nfa_start in
+      simplify mgr q;
+      q
     end
 
   let dual_closure mgr nfa =
@@ -885,6 +830,8 @@ struct
           set_stratum mgr (state i) h
         end
       done;
-      state nfa_start
+      let q = state nfa_start in
+      simplify mgr q;
+      q
     end
 end

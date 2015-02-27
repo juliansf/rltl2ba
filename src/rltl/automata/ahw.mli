@@ -17,6 +17,7 @@ module type S = sig
       ahw_final: (state, unit) Hashtbl.t;
       ahw_stratum: (state, stratum) Hashtbl.t;
       ahw_strata: (stratum, strat_kind) Hashtbl.t;
+      ahw_simplified: (state, unit) Hashtbl.t;
       ahw_false: state;
       ahw_true: state;
     }
