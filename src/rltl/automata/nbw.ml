@@ -127,10 +127,10 @@ struct
       begin
         let h = Ahw.get_stratum mgr.nbw_ahwmgr q in
         match Ahw.get_stratum_kind mgr.nbw_ahwmgr h with
-        | SAccept -> [1]
-        | SReject -> [2]
-        | SBuchi -> if Ahw.is_final mgr.nbw_ahwmgr q then [1] else [2]
-        | SCoBuchi ->
+        | Ahw.SAccept -> [1]
+        | Ahw.SReject -> [2]
+        | Ahw.SBuchi -> if Ahw.is_final mgr.nbw_ahwmgr q then [1] else [2]
+        | Ahw.SCoBuchi ->
           let mv = min max_val (Ahw.get_stratum_size mgr.nbw_ahwmgr ahw h) in
           if Ahw.is_final mgr.nbw_ahwmgr q then maxtwo_bad mv
           else if mv > 1 then [mv-1; mv] else [1]
@@ -208,10 +208,7 @@ struct
         (Hashtbl.find nmap node) (*print_node node*) shapecolor;
 
     let print_init_node fmt x =
-      let {s;ok} = x in
-      (*if Array.length s = 0 then
-        Format.fprintf fmt "T"
-        else*) if Hashtbl.mem istates x then
+      if Hashtbl.mem istates x then
         let idx =
           if isize > 1 then string_of_int (Hashtbl.find nmap x) else "" in
         Format.fprintf fmt "init%s" idx

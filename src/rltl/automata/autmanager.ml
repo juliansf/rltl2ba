@@ -148,7 +148,6 @@ let rec get_nfa mgr node =
         (*Format.fprintf Format.err_formatter "%a\n"
           (Printnfa.print_nfa
           (fun fmt l -> Format.fprintf fmt "%s" (Bool.Default.B.to_string l)))*)
-             x;
         x
       end;
   end
