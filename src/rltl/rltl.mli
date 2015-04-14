@@ -1,5 +1,6 @@
 open Exptypes
 open Exptree
+open Shared
 
 module Expgen : sig
   type manager
@@ -66,14 +67,21 @@ module Automata : sig
   type label
   type nfa
   type ahw
+  type nbw
   type automata =
+  | Nbw of nbw
   | Ahw of ahw
   | Nfa of nfa
+
+  val fullRank : ranking
+  val maxTwoRank : ranking
+  val stratifiedRank : ranking
 
   val init: Expgen.manager -> t
   val get_label: t -> Expgen.node -> label
   val get_nfa: t -> Expgen.node -> nfa
   val get_ahw: ?simpl:bool -> t -> Expgen.node -> ahw
+  val get_nbw: ?rank:ranking -> t -> Expgen.node -> nbw
 
   (* Pretty printers *)
   val print_manager: Format.formatter -> t -> unit
@@ -81,4 +89,6 @@ module Automata : sig
   val nfa2dot: t -> Format.formatter -> nfa -> unit
   val print_ahw: t -> Format.formatter -> ahw -> unit
   val ahw2dot: t -> Format.formatter -> ahw -> unit
+  val print_nbw: t -> Format.formatter -> nbw -> unit
+  val nbw2dot: t -> Format.formatter -> nbw -> unit
 end

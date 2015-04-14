@@ -105,7 +105,7 @@ let rec print_class ?(and_arrow=false) si fmt c =
         incr n;
         let q = Printf.sprintf "disj_%s_%d" si !n in
         Format.fprintf fmt
-          "%s [shape=invtriangle width=0.2 height=0.2 label=\"\" fixedsize];@\n\
+          "%s [shape=invtriangle width=0.2 height=0.2 label=\"\" fixedsize=true];@\n\
           %s -> %s [label=\"\" arrowhead=none];@\n" q si q;
         List.iter (print_class q fmt) xs
       end
@@ -116,7 +116,7 @@ let rec print_class ?(and_arrow=false) si fmt c =
     incr n;
     let q = Printf.sprintf "conj_%s_%d" si !n in
     Format.fprintf fmt
-      "%s [shape=triangle width=0.2 height=0.2 label=\"\" fixedsize];@\n\
+      "%s [shape=triangle width=0.2 height=0.2 label=\"\" fixedsize=true];@\n\
       %s -> %s [label=\" %s \" arrowhead=none];@\n" q si q (to_string' l);
     List.iter (print_class ~and_arrow:true q fmt) xs
 
@@ -170,8 +170,8 @@ let ahw2dot mgr fmt ahw =
 
     (* Print the condition *)
 
-    (*
-    Printf.eprintf "cond = %s -> %s\n"
+
+    (*Printf.eprintf "cond = %s -> %s\n"
       (Ahw.Nfa.Label.to_string delta)
       (Ahw.Nfa.Label.string_of_classified (Ahw.Nfa.Label.classify delta));
     *)
@@ -211,6 +211,9 @@ let ahw2dot mgr fmt ahw =
 let print_ahw mgr fmt ahw =
   reset();
 
+  Printf.eprintf "AHW(%d) size: " ahw;
+  Printf.eprintf "%d\n" (Ahw.size mgr ahw);
+
   (* Print the initial state *)
   Format.fprintf fmt "start: %d@;" (rename_state ahw);
 
@@ -229,7 +232,9 @@ let print_ahw mgr fmt ahw =
     in
     let h = get_stratum mgr q in
     let hk = stratum_kind mgr h in
-    Format.fprintf fmt "%4d [%d,%s] : " (rename_state q) (rename_stratum h) hk;
+    let hs = get_stratum_size mgr ahw h in
+    let h_states = get_stratum_states mgr h in
+    Format.fprintf fmt "%4d [%d,%s,%d] : " (rename_state q) (rename_stratum h) hk hs;
     Format.fprintf fmt "%s@\n" (Ahw.Nfa.Label.to_string delta);
     Ahw.Nfa.Label.iter_states (fun i ->
       if not (Hashtbl.mem visited i) then begin

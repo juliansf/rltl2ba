@@ -1,3 +1,5 @@
+open Shared
+
 module type S = sig
   type error =
   | Invalid_Nbw
@@ -6,33 +8,40 @@ module type S = sig
 
   module Ahw : Ahw.S
 
-  type ranking =
-  | StratifiedRank
-  | MaxTwoRank
-  | FullRank
+  type ranking = Shared.ranking
 
-  type state = Misc.IntSet.t
+  type state = { s : int array; o : bool array; f : int array; ok : bool; }
   type trans = (state, Ahw.Nfa.Label.t) Hashtbl.t
+  type reference = int
 
+  type nbw =
+    {
+      nbw_delta : (state,trans) Hashtbl.t;
+      nbw_init: (state,unit) Hashtbl.t;
+    }
 
   type manager =
     { nbw_ahwmgr: Ahw.manager;
-      nbw_delta: (state, trans) Hashtbl.t;
-      nbw_final: (state, unit) Hashtbl.t;
-      nbw_true: state;
+      nbw_aut_number: int ref;
+      nbw_automata: (reference, nbw) Hashtbl.t;
     }
 
-  type nbw = state
-  type t = nbw
+  type t = reference
+
+  val _true : state
 
   val init: Ahw.manager -> manager
 
   val from_ahw: ?rank:ranking -> manager -> Ahw.t -> t
+  val find: manager -> reference -> nbw
+  val remove: manager -> reference -> unit
 
+  val is_false: nbw -> bool
+  val is_true: nbw -> bool
 
   (* Auxiliary functions *)
-  val is_final: manager -> state -> bool
-  val get_delta: manager -> state -> trans
+  val is_final: nbw -> state -> bool
+  val get_delta: nbw -> state -> trans
 end
 
 module Make(A : Ahw.S) =
@@ -47,53 +56,49 @@ struct
 
   exception Error of error
 
-  type ranking =
-  | StratifiedRank
-  | MaxTwoRank
-  | FullRank
+  type ranking = Shared.ranking
 
-  type state = Misc.IntSet.t
+  type state = { s : int array; o : bool array; f : int array; ok : bool; }
   type trans = (state, Ahw.Nfa.Label.t) Hashtbl.t
+  type reference = int
 
-
-  type node = { s : int array; o : bool array; f : int array; ok : bool; }
-
-  (*type node = { s : int; o : int; f : int; ok : bool; } <- this should be the final one *)
-  (*type node = { s : IS.t; o : IS.t; f : (int,int) Hashtbl.t; }*)
-
+  type nbw =
+    {
+      nbw_delta : (state,trans) Hashtbl.t;
+      nbw_init: (state,unit) Hashtbl.t;
+    }
 
   type manager =
     { nbw_ahwmgr: Ahw.manager;
-      nbw_delta: (state, trans) Hashtbl.t;
-      nbw_final: (state, unit) Hashtbl.t;
-      nbw_true: state;
+      nbw_aut_number: int ref;
+      nbw_automata: (reference, nbw) Hashtbl.t;
     }
 
-  type nbw = state
-  type t = nbw
+  type t = reference
+
+  let _true = {s=[||]; o=[||]; f=[||]; ok=true}
 
   (* Initialization function *)
   let init ahwmgr =
-    let delta = Hashtbl.create 8 in
-    let final = Hashtbl.create 8 in
-
-    let _true = IS.empty in
-    let _true_delta = Hashtbl.create 1 in
-    Hashtbl.add _true_delta _true Label.dtrue;
-    Hashtbl.add delta _true _true_delta;
-    Hashtbl.add final _true ();
-
     {
       nbw_ahwmgr = ahwmgr;
-      nbw_delta = delta;
-      nbw_final = final;
-      nbw_true = _true;
+      nbw_aut_number = ref (0);
+      nbw_automata = Hashtbl.create 1;
     }
 
+  let find mgr x = Hashtbl.find mgr.nbw_automata x
+  let remove mgr x = Hashtbl.remove mgr.nbw_automata x
+
+  let is_false aut = Hashtbl.length aut.nbw_delta = 0
+  let is_true aut =
+    Hashtbl.length aut.nbw_delta = 1
+    && Hashtbl.mem aut.nbw_delta _true
+
   (* Auxiliary functions *)
-  let is_final mgr q = Hashtbl.mem mgr.nbw_final q
-  let get_delta mgr q = Hashtbl.find mgr.nbw_delta q
-  let set_delta mgr q t = Hashtbl.replace mgr.nbw_delta q t
+  let new_reference mgr = incr mgr.nbw_aut_number; !(mgr.nbw_aut_number)
+  let is_final aut q = q.ok = true
+  let get_delta aut q = Hashtbl.find aut.nbw_delta q
+  let set_delta aut q t = Hashtbl.replace aut.nbw_delta q t
 
 
   let rank mgr ahw rank_type max_val q =
@@ -250,6 +255,11 @@ struct
         IS.filter (fun y -> stratum y = stratum x) pred
       | _ -> pred
     in
+    let rejecting_singleton h =
+      match rank_type with
+      | StratifiedRank -> (Ahw.get_stratum_size mgr.nbw_ahwmgr ahw h) = 1
+      | _ -> false
+    in
 
     let size = Ahw.size mgr.nbw_ahwmgr ahw in
     let state_number = ref (0) in
@@ -295,11 +305,11 @@ struct
           IntSetHashtbl.add nbw_delta x a;
         end;
       done;
-(*
-      IntSetHashtbl.iter (fun x a ->
+
+      (*IntSetHashtbl.iter (fun x a ->
         Format.eprintf "node: %a" (show_arrows_dot (!initial) x) a
-      ) nbw_delta;
-*)
+      ) nbw_delta;*)
+
       (* ... here the automaton can be simplified ... START *)
       let delta_size = IntSetHashtbl.length nbw_delta in
       let reverse = IntSetHashtbl.create delta_size in
@@ -444,16 +454,18 @@ struct
                 let f' = Array.of_list fs in
                 let o' = Array.init is_size (fun i ->
                   let c = not (is_good(s'.(i)))
-                    && (if ok then f'.(i) mod 2 = 0
-                      else begin
-                        let pred = pred_set (s'.(i)) in
-                        try Array.iteri (fun j x ->
-                          if IS.mem x pred && f'.(i) = f.(j) then
-                            raise Exit) s; false
-                        with Exit -> true
-                      end) in
+                    && ((rejecting_singleton (stratum (s'.(i))))
+                        || (if ok then f'.(i) mod 2 = 0
+                          else begin
+                            let pred = pred_set (s'.(i)) in
+                            try Array.iteri (fun j x ->
+                              if IS.mem x pred && o.(j) && f'.(i) = f.(j) then
+                                raise Exit) s;  false
+                            with Exit -> true
+                          end)) in
                   if c then ok' := false; c) in
                 let node' = {s = s'; o = o'; f = f'; ok = !ok'} in
+                (*Format.eprintf "    :: %a@." print_node node';*)
                 Queue.add node' waiting;
                 Hashtbl.add node_delta node' l;
               ) f_is;
@@ -517,23 +529,23 @@ struct
     ) delta;
     (* Clean the table of nodes - END *)
 
-    Format.printf "@[<v 1>digraph {@;@;rank = min;@;splines=true;@;fontsize = 10;@;@;";
-
-    Hashtbl.iter (fun node d ->
-      Format.printf "%a" (show_delta_dot nodes_map initial_states node) d
-    ) delta;
-
-    Format.printf "@]}@.";
-
     Format.eprintf "NBW creation time: %f@." t_total;
     Format.eprintf "States: %d@." (Hashtbl.length delta);
 
-(*
-    IntSetHashtbl.iter (fun y _ ->
+
+    (*IntSetHashtbl.iter (fun y _ ->
       Format.eprintf "%a:@." printset y;
       IS.iter (fun i ->
         Format.eprintf "%d -> %a@." i printset (Ahw.pred mgr.nbw_ahwmgr i)
       ) y
-  ) nbw_delta;*)
-    (!initial)
+      ) nbw_delta;*)
+    let aut =
+      {
+        nbw_delta = delta;
+        nbw_init = initial_states;
+      }
+    in
+    let _ref = new_reference mgr in
+    Hashtbl.add mgr.nbw_automata _ref aut;
+    _ref
 end

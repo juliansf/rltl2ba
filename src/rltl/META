@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: b3fa8a7ecaa0e96bb50d40c274df50ff)
+# DO NOT EDIT (digest: 00e989317c373c5edd18e100c775c33a)
 version = "0.1.0"
 description = "Translator for RLTL expressions into Buchi automata."
 requires = "cudd utils"
@@ -16,7 +16,7 @@ package "typing" (
  archive(byte, plugin) = "typing.cma"
  archive(native) = "typing.cmxa"
  archive(native, plugin) = "typing.cmxs"
- exists_if = "typing.cma"
+ exists_if = "typing.cmxa"
 )
 
 package "translator" (
@@ -27,7 +27,7 @@ package "translator" (
  archive(byte, plugin) = "translator.cma"
  archive(native) = "translator.cmxa"
  archive(native, plugin) = "translator.cmxs"
- exists_if = "translator.cma"
+ exists_if = "translator.cmxa"
 )
 
 package "parsing" (
@@ -38,7 +38,7 @@ package "parsing" (
  archive(byte, plugin) = "parsing.cma"
  archive(native) = "parsing.cmxa"
  archive(native, plugin) = "parsing.cmxs"
- exists_if = "parsing.cma"
+ exists_if = "parsing.cmxa"
 )
 
 package "driver" (

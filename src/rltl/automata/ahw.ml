@@ -10,6 +10,7 @@ module type S = sig
   type trans = Nfa.Label.t
   type stratum = int
   type strat_kind = SAccept | SReject | SBuchi | SCoBuchi
+  type goodness = Good | Bad | Neutral
 
   type manager =
     { ahw_bddmgr: Bdd.manager;
@@ -18,6 +19,11 @@ module type S = sig
       ahw_stratum: (state, stratum) Hashtbl.t;
       ahw_strata: (stratum, strat_kind) Hashtbl.t;
       ahw_simplified: (state, unit) Hashtbl.t;
+      ahw_pred: (state, (state, unit) Hashtbl.t) Hashtbl.t;
+      ahw_state_number: int ref;
+      ahw_stratum_number: int ref;
+      ahw_size: (state, int) Hashtbl.t;
+      ahw_strata_size: (state, (stratum, int) Hashtbl.t) Hashtbl.t;
       ahw_false: state;
       ahw_true: state;
     }
@@ -56,11 +62,15 @@ module type S = sig
   *)
 
   (* Auxiliary functions *)
+  val size: manager -> t -> int
   val is_final: manager -> state -> bool
   val get_delta: manager -> state -> trans
   val get_stratum: manager -> state -> stratum
   val get_stratum_kind: manager -> stratum -> strat_kind
   val get_stratum_states: manager -> stratum -> state list
+  val get_stratum_size: manager -> t -> stratum -> int
+  val pred: manager -> state -> Misc.IntSet.t
+  val goodness: manager -> state -> goodness
 end
 
 
@@ -74,11 +84,13 @@ struct
 
   module Nfa = N
   module Label = Nfa.Label
+  module IntSet = Misc.IntSet
 
   type state = int
   type trans = Nfa.Label.t
   type stratum = int
   type strat_kind = SAccept | SReject | SBuchi | SCoBuchi
+  type goodness = Good | Bad | Neutral
 
   type manager =
     { ahw_bddmgr: Bdd.manager;
@@ -87,6 +99,11 @@ struct
       ahw_stratum: (state, stratum) Hashtbl.t;
       ahw_strata: (stratum, strat_kind) Hashtbl.t;
       ahw_simplified: (state, unit) Hashtbl.t;
+      ahw_pred: (state, (state, unit) Hashtbl.t) Hashtbl.t;
+      ahw_state_number: int ref;
+      ahw_stratum_number: int ref;
+      ahw_size: (state, int) Hashtbl.t;
+      ahw_strata_size: (state, (stratum, int) Hashtbl.t) Hashtbl.t;
       ahw_false: state;
       ahw_true: state;
     }
@@ -98,7 +115,10 @@ struct
   (* Initialization function *)
   let init bddmgr =
     let cuddmgr = bddmgr.Bdd.bdd_mgr in
+    let _size = Hashtbl.create 8 in
+    let strata_size = Hashtbl.create 8 in
     let delta = Hashtbl.create 8 in
+    let pred = Hashtbl.create 8 in
     let final = Hashtbl.create 8 in
     let stratum = Hashtbl.create 8 in
     let strata = Hashtbl.create 8 in
@@ -106,9 +126,11 @@ struct
     let _false = 0 in
     let _true = 1 in
     Hashtbl.add delta _false (Label.dfalse);
+    Hashtbl.add _size _false 1;
     Hashtbl.add stratum _false 0;
     Hashtbl.add strata 0 SReject;
     Hashtbl.add delta _true (Label.dtrue);
+    Hashtbl.add _size _true 1;
     Hashtbl.add stratum _true 1;
     Hashtbl.add strata 1 SAccept;
 
@@ -119,23 +141,26 @@ struct
       ahw_stratum = stratum;
       ahw_strata = strata;
       ahw_simplified = simpl;
+      ahw_pred = pred;
+      ahw_state_number = ref (1);
+      ahw_stratum_number = ref (1);
+      ahw_size = _size;
+      ahw_strata_size = strata_size;
       ahw_false = _false;
       ahw_true = _true;
     }
 
   (* Auxiliary functions *)
-  let state_number = ref (1)
-  let new_state () = incr state_number; !state_number
+  let new_state mgr = incr mgr.ahw_state_number; !(mgr.ahw_state_number)
   let get_delta mgr q =
     try Hashtbl.find mgr.ahw_delta q
-    with _ -> failwith ("ahw_of_nfa_exist_fuse_power"^string_of_int q)
+    with Not_found -> raise (Error Invalid_Ahw)
   let set_delta mgr q succ = Hashtbl.add mgr.ahw_delta q succ
 
   let is_final mgr q = Hashtbl.mem mgr.ahw_final q
   let set_final mgr q = Hashtbl.add mgr.ahw_final q ()
 
-  let stratum_number = ref (1)
-  let new_stratum () = incr stratum_number; !stratum_number
+  let new_stratum mgr = incr mgr.ahw_stratum_number; !(mgr.ahw_stratum_number)
   let get_stratum mgr q = Hashtbl.find mgr.ahw_stratum q
   let set_stratum mgr q h = Hashtbl.replace mgr.ahw_stratum q h
 
@@ -145,15 +170,76 @@ struct
   let get_stratum_states mgr h =
     Hashtbl.fold (fun q s qs -> if h = s then q::qs else qs) mgr.ahw_stratum []
 
+  let pred mgr q =
+    try
+      Hashtbl.fold (fun i _ s -> IntSet.add i s)
+        (Hashtbl.find mgr.ahw_pred q) IntSet.empty
+    with
+      Not_found -> IntSet.empty (*raise (Error Invalid_Ahw)*)
+
+  let goodness mgr q =
+    match get_stratum_kind mgr (get_stratum mgr q) with
+    | SAccept -> Good
+    | SReject -> Bad
+    | SBuchi -> if is_final mgr q then Good else Bad
+    | SCoBuchi -> if is_final mgr q then Bad else Neutral
+
+  let size mgr q =
+    if q = mgr.ahw_false || q = mgr.ahw_true then 1
+    else begin
+      try Hashtbl.find mgr.ahw_size q
+      with Not_found ->
+        let strata = Hashtbl.create 8 in
+        let visited = Hashtbl.create 8 in
+
+        let incr_stratum_size h =
+          let v = try Hashtbl.find strata h with Not_found -> 0 in
+          Hashtbl.replace strata h (v+1)
+        in
+        let rec count x =
+          if Hashtbl.mem visited x then 0
+          else begin
+            Hashtbl.add visited x ();
+            incr_stratum_size (get_stratum mgr x);
+            List.fold_left (fun c i -> c + count i)
+              1 (Label.states (get_delta mgr x))
+          end
+        in
+        let c = count q in
+        Hashtbl.replace mgr.ahw_size q c;
+        Hashtbl.replace mgr.ahw_strata_size q strata;
+        c
+    end
+
+  let reset_size mgr q = Hashtbl.remove mgr.ahw_size q
+  let set_size mgr q n = Hashtbl.replace mgr.ahw_size q n
+  let incr_size mgr q = Hashtbl.replace mgr.ahw_size q (size mgr q + 1)
+  let decr_size mgr q = Hashtbl.replace mgr.ahw_size q (size mgr q - 1)
+
+  let get_stratum_size mgr q h =
+    if q = mgr.ahw_false || q = mgr.ahw_true then 1 else begin
+      (if not (Hashtbl.mem mgr.ahw_strata_size q) then ignore (size mgr q));
+      Hashtbl.find (Hashtbl.find mgr.ahw_strata_size q) h
+    end
+
+  let remove_state mgr q = begin
+    Hashtbl.remove mgr.ahw_delta q;
+    Hashtbl.remove mgr.ahw_final q;
+    Hashtbl.remove mgr.ahw_stratum q;
+    Hashtbl.remove mgr.ahw_simplified q;
+    Hashtbl.remove mgr.ahw_pred q;
+    Hashtbl.iter (fun _ t -> Hashtbl.remove t q) mgr.ahw_pred;
+    Hashtbl.remove mgr.ahw_size q
+  end
+
   let is_simplified mgr q = Hashtbl.mem mgr.ahw_simplified q
   let set_simplified mgr q = Hashtbl.add mgr.ahw_simplified q ()
 
   (** Simplifies the alternating automaton *)
   let simplify mgr x =
-    let reverse = Hashtbl.create 8 in
+    let reverse = mgr.ahw_pred in
     let leaves = Hashtbl.create 8 in
     let waiting = Queue.create () in
-    let visited = Hashtbl.create 8 in
 
     let get_reverse i =
       if not (Hashtbl.mem reverse i) then
@@ -163,38 +249,31 @@ struct
     (* Compute reverse transition relation and leaves *)
     Queue.add x waiting;
     while not (Queue.is_empty waiting) do
-      let x = Queue.take waiting in
-      if not (Hashtbl.mem visited x || is_simplified mgr x) then begin
-        Hashtbl.add visited x ();
-        if Label.is_true (get_delta mgr x) then
-          Hashtbl.add leaves x Label.dtrue
-        else if Label.is_false (get_delta mgr x) then
-          Hashtbl.add leaves x Label.dfalse
+      let y = Queue.take waiting in
+      if not (is_simplified mgr y) then begin
+
+        set_simplified mgr y;
+        if Label.is_true (get_delta mgr y) then
+          Hashtbl.add leaves y Label.dtrue
+        else if Label.is_false (get_delta mgr y) then
+          Hashtbl.add leaves y Label.dfalse
         else
           Label.iter_states (fun i ->
-            if i != x then begin
-              Queue.add i waiting;
-              Hashtbl.add (get_reverse i) x ()
-            end) (get_delta mgr x)
+            Hashtbl.add (get_reverse i) y ();
+            if i != y then Queue.add i waiting
+          ) (get_delta mgr y)
       end
     done;
 
-    (*
-      Hashtbl.iter (fun i ti ->
-        Printf.eprintf "# %d -> ( " i;
-      Hashtbl.iter (fun q _ -> Printf.eprintf "%d " q) ti;
-        Printf.eprintf ")\n";) reverse;
-      Hashtbl.iter (fun i d -> Printf.eprintf "# %d -> %s\n" i (Label.to_string d)) leaves;
-    *)
-
     (* Delete leaves recursively *)
-    Hashtbl.reset visited;
     let boundary = Hashtbl.create 8 in
     while Hashtbl.length leaves > 0 do
       let t = Hashtbl.copy leaves in
       Hashtbl.reset leaves;
       Hashtbl.iter (fun i d ->
-        Hashtbl.iter (fun j _ -> Hashtbl.add boundary j ()) (get_reverse i)
+        (*if i != x then remove_state mgr i;*)
+        Hashtbl.iter (fun j _ ->
+          if j != i then Hashtbl.add boundary j ()) (get_reverse i)
       ) t;
       Hashtbl.iter (fun q _->
         let mapi i = if Hashtbl.mem t i then Hashtbl.find t i else Label.dstate i in
@@ -205,10 +284,10 @@ struct
         else if Label.is_false delta then
           Hashtbl.add leaves q Label.dfalse
       ) boundary;
-      (*Hashtbl.iter (fun i d -> Printf.eprintf "%% %d -> %s\n" i (Label.to_string d)) leaves;*)
-      Hashtbl.reset boundary;
-      set_simplified mgr x
+      Hashtbl.reset boundary
     done
+
+  (*set_simplified mgr x*)
 
   (** Builds the bottom/top specular pair *)
   let bottom mgr = mgr.ahw_false
@@ -219,8 +298,8 @@ struct
     if Label.is_true b then top mgr
     else if Label.is_false b then bottom mgr
     else begin
-      let q = new_state() in
-      let h = new_stratum() in
+      let q = new_state mgr in
+      let h = new_stratum mgr in
       (* Set regular *)
       set_delta mgr q b;
       set_stratum mgr q h;
@@ -242,8 +321,8 @@ struct
     else begin
       (*Printf.fprintf stderr "(regular... %!";*)
       (* Create the new state for regular *)
-      let q = new_state() in
-      let h = new_stratum() in
+      let q = new_state mgr in
+      let h = new_stratum mgr in
       (* Build the transition *)
       set_delta mgr q (Label.simplify (Label.dor dx dy));
       set_stratum mgr q h;
@@ -266,8 +345,8 @@ struct
     else begin
       (*Printf.fprintf stderr "(regular... %!";*)
       (* Create the new state for regular *)
-      let q = new_state() in
-      let h = new_stratum() in
+      let q = new_state mgr in
+      let h = new_stratum mgr in
       (* Build the transition *)
       set_delta mgr q (Label.simplify (Label.dand dx dy));
       set_stratum mgr q h;
@@ -281,7 +360,7 @@ struct
     let {Nfa.nfa_delta; nfa_start; nfa_final} = nfa in
     let n = Nfa.size nfa in
     let state_map = Array.init n (fun i ->
-      if nfa_delta.(i) != [] then new_state () else mgr.ahw_true) in
+      if nfa_delta.(i) != [] then new_state mgr else mgr.ahw_true) in
 
     (* Create the states *)
     let state i = state_map.(i) in
@@ -292,7 +371,7 @@ struct
     in
 
     (* Create the rejecting stratum *)
-    let h = new_stratum() in
+    let h = new_stratum mgr in
     set_stratum_kind mgr h SReject;
 
     let next = next (state nfa_start) in
@@ -322,7 +401,7 @@ struct
     let {Nfa.nfa_delta; nfa_start; nfa_final} = nfa in
     let n = Nfa.size nfa in
     let state_map = Array.init n (fun i ->
-      if nfa_delta.(i) != [] then new_state () else mgr.ahw_false) in
+      if nfa_delta.(i) != [] then new_state mgr else mgr.ahw_false) in
 
     (* Create the states *)
     let state i = state_map.(i) in
@@ -333,7 +412,7 @@ struct
     in
 
     (* Create the accepting stratum *)
-    let h = new_stratum() in
+    let h = new_stratum mgr in
     set_stratum_kind mgr h SAccept;
 
     let next = next (state nfa_start) in
@@ -365,12 +444,10 @@ struct
     if nfa = Nfa.nfa_false || Label.is_false dx then
       bottom mgr
     else begin
-      Printf.eprintf "Ahw.concat.dx(%d) = %s\n" x (Label.to_string dx);
       let succ =
         if Label.is_true dx then Label.dtrue
         else Label.dstate x
       in
-      Printf.eprintf "Ahw.concat.succ(%d) = %s\n" x (Label.to_string succ);
       let q = ahw_of_nfa_exist mgr nfa (fun _ -> succ) in
 
       if nfa.Nfa.nfa_final.(nfa.Nfa.nfa_start) then
@@ -419,7 +496,8 @@ struct
 
   (** Builds the universal sequence of an NFA and an AHW with overlap *)
   let univ_fusion mgr nfa x =
-    let dx = get_delta mgr x in
+    try
+    let dx = try get_delta mgr x with Not_found -> failwith "Ahw.univ_fusion.get_delta" in
 
     if nfa = Nfa.nfa_false || Label.is_true dx then
       top mgr
@@ -433,6 +511,7 @@ struct
       simplify mgr q;
       q
     end
+    with Not_found -> failwith "Ahw.univ_fusion"
 
   let power mgr x r y =
     let dx = get_delta mgr x in
@@ -442,7 +521,7 @@ struct
     else if Label.is_true dy then top mgr
     else begin
       (* Create the new state *)
-      let q = new_state () in
+      let q = new_state mgr in
 
       (* Build the transition *)
       let r' = ahw_of_nfa_exist mgr r (fun _ -> Label.dstate q) in
@@ -467,7 +546,7 @@ struct
     else if Label.is_false dy then bottom mgr
     else begin
       (* Create the new state *)
-      let q = new_state () in
+      let q = new_state mgr in
 
       (* Build the transition *)
       let r' = ahw_of_nfa_univ mgr r (fun _ -> Label.dstate q) in
@@ -521,7 +600,7 @@ struct
     let {Nfa.nfa_delta; nfa_start; nfa_final} = nfa in
     let n = Nfa.size nfa in
     let state_map = Array.init n (fun i ->
-      if nfa_delta.(i) != [] then new_state () else mgr.ahw_true) in
+      if nfa_delta.(i) != [] then new_state mgr else mgr.ahw_true) in
 
     let state i = state_map.(i) in
     let lstate i =
@@ -531,7 +610,7 @@ struct
     in
 
     (* Create a new stratum *)
-    let h = new_stratum() in
+    let h = new_stratum mgr in
 
     (* Tells if a state is final and have no successors *)
     let totally_final i = nfa_final.(i) && nfa_delta.(i) = [] in
@@ -588,7 +667,7 @@ struct
     let {Nfa.nfa_delta; nfa_start; nfa_final} = nfa in
     let n = Nfa.size nfa in
     let state_map = Array.init n (fun i ->
-      if nfa_delta.(i) != [] then new_state () else mgr.ahw_false) in
+      if nfa_delta.(i) != [] then new_state mgr else mgr.ahw_false) in
 
     let state i = state_map.(i) in
     let lstate i =
@@ -598,7 +677,7 @@ struct
     in
 
     (* Create a new stratum *)
-    let h = new_stratum() in
+    let h = new_stratum mgr in
 
     (* Tells if a state is final and have no successors *)
     let totally_final i = nfa_final.(i) && nfa_delta.(i) = [] in
@@ -657,7 +736,7 @@ struct
     else if Label.is_true dy then top mgr
     else begin
       (* Create the new state for regular *)
-      let q = new_state () in
+      let q = new_state mgr in
 
       (* Build the transition *)
       let next d = Label.dor dy (Label.dand dy d) in
@@ -682,7 +761,7 @@ struct
     else if Label.is_false dy then bottom mgr
     else begin
       (* Create the new state for regular *)
-      let q = new_state () in
+      let q = new_state mgr in
 
       (* Build the transition *)
       let next d = Label.dand dy (Label.dor dy d) in
@@ -707,7 +786,7 @@ struct
     else if Label.is_true dy then top mgr
     else begin
       (* Create the new state for regular *)
-      let q = new_state () in
+      let q = new_state mgr in
 
       (* Build the transition *)
       let next d = Label.dor dy (Label.dand dx d) in
@@ -735,7 +814,7 @@ struct
     else if Label.is_false dy then top mgr
     else begin
       (* Create the new state for regular *)
-      let q = new_state () in
+      let q = new_state mgr in
 
       (* Build the transition *)
       let next d = Label.dand dy (Label.dor dx d) in
@@ -764,7 +843,7 @@ struct
       let state_map = Array.init n (fun i ->
         if nfa_final.(i) then mgr.ahw_true
         else if nfa_delta.(i) = [] then mgr.ahw_false
-        else new_state ()) in
+        else new_state mgr) in
 
       let state i = state_map.(i) in
       let lstate i =
@@ -775,7 +854,7 @@ struct
       in
 
       (* Create the new accepting stratum *)
-      let h = new_stratum() in
+      let h = new_stratum mgr in
       set_stratum_kind mgr h SAccept;
 
       (* Create the transitions and set the colors *)
@@ -804,7 +883,7 @@ struct
       let state_map = Array.init n (fun i ->
         if nfa_final.(i) then mgr.ahw_false
         else if nfa_delta.(i) = [] then mgr.ahw_true
-        else new_state ()) in
+        else new_state mgr) in
 
       let state i = state_map.(i) in
       let lstate i =
@@ -815,7 +894,7 @@ struct
       in
 
       (* Create the new rejecting stratum *)
-      let h = new_stratum() in
+      let h = new_stratum mgr in
       set_stratum_kind mgr h SReject;
 
       (* Create the transitions and set the colors *)

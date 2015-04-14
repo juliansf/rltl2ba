@@ -10,6 +10,7 @@ module type S = sig
   type trans = Nfa.Label.t
   type stratum = int
   type strat_kind = SAccept | SReject | SBuchi | SCoBuchi
+  type goodness = Good | Bad | Neutral
 
   type manager =
     { ahw_bddmgr: Bdd.manager;
@@ -18,12 +19,16 @@ module type S = sig
       ahw_stratum: (state, stratum) Hashtbl.t;
       ahw_strata: (stratum, strat_kind) Hashtbl.t;
       ahw_simplified: (state, unit) Hashtbl.t;
+      ahw_pred: (state, (state, unit) Hashtbl.t) Hashtbl.t;
+      ahw_state_number: int ref;
+      ahw_stratum_number: int ref;
+      ahw_size: (state, int) Hashtbl.t;
+      ahw_strata_size: (state, (stratum, int) Hashtbl.t) Hashtbl.t;
       ahw_false: state;
       ahw_true: state;
     }
 
   type ahw = state
-
   type t = ahw
 
   val init: Bdd.manager -> manager
@@ -56,11 +61,15 @@ module type S = sig
   *)
 
   (* Auxiliary functions *)
+  val size: manager -> t -> int
   val is_final: manager -> state -> bool
   val get_delta: manager -> state -> trans
   val get_stratum: manager -> state -> stratum
   val get_stratum_kind: manager -> stratum -> strat_kind
   val get_stratum_states: manager -> stratum -> state list
+  val get_stratum_size: manager -> t -> stratum -> int
+  val pred: manager -> state -> Misc.IntSet.t
+  val goodness: manager -> state -> goodness
 end
 
 
@@ -76,7 +85,9 @@ module Make(N : Nfa.S) : S with module Nfa = N
 (*
   #directory "lib/cudd";;
   #directory "src/rltl/automata/";;
+  #directory "src/utils/";;
   #load "cudd.cma";;
+  #load_rec "bool.cmo";;
   #load_rec "printahw.cmo";;
   #load_rec "printnfa.cmo";;
   #load_rec "printbdd.cmo";;

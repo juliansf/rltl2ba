@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: d1fb2dace8e7ffb01e34f16a4fd683fe)
+# DO NOT EDIT (digest: cf73e5778db6371d51d7809e4e425e5e)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -47,24 +47,24 @@
 <src/rltl/automata/*.ml{,i}>: use_utils
 # Library parsing
 "src/parsing/parsing.cmxs": use_parsing
-<src/parsing/parsing.{cma,cmxa}>: oasis_library_parsing_byte
+"src/parsing/parsing.cmxa": oasis_library_parsing_byte
 <src/parsing/*.ml{,i}>: oasis_library_parsing_byte
-<src/parsing/parsing.{cma,cmxa}>: oasis_library_parsing_native
+"src/parsing/parsing.cmxa": oasis_library_parsing_native
 <src/parsing/*.ml{,i}>: oasis_library_parsing_native
 <src/parsing/*.ml{,i}>: use_utils
 # Library typing
 "src/typing/typing.cmxs": use_typing
-<src/typing/typing.{cma,cmxa}>: oasis_library_typing_byte
+"src/typing/typing.cmxa": oasis_library_typing_byte
 <src/typing/*.ml{,i}>: oasis_library_typing_byte
-<src/typing/typing.{cma,cmxa}>: oasis_library_typing_native
+"src/typing/typing.cmxa": oasis_library_typing_native
 <src/typing/*.ml{,i}>: oasis_library_typing_native
 <src/typing/*.ml{,i}>: use_parsing
 <src/typing/*.ml{,i}>: use_utils
 # Library translator
 "src/translator/translator.cmxs": use_translator
-<src/translator/translator.{cma,cmxa}>: oasis_library_translator_byte
+"src/translator/translator.cmxa": oasis_library_translator_byte
 <src/translator/*.ml{,i}>: oasis_library_translator_byte
-<src/translator/translator.{cma,cmxa}>: oasis_library_translator_native
+"src/translator/translator.cmxa": oasis_library_translator_native
 <src/translator/*.ml{,i}>: oasis_library_translator_native
 <src/translator/*.ml{,i}>: use_cudd
 <src/translator/*.ml{,i}>: use_parsing
@@ -78,12 +78,12 @@
 <src/driver/driver.{cma,cmxa}>: oasis_library_driver_native
 <src/driver/*.ml{,i}>: oasis_library_driver_native
 # Executable rltl2ba
-<src/driver/main.{native,byte}>: use_cudd
-<src/driver/main.{native,byte}>: use_parsing
-<src/driver/main.{native,byte}>: use_rltl
-<src/driver/main.{native,byte}>: use_translator
-<src/driver/main.{native,byte}>: use_typing
-<src/driver/main.{native,byte}>: use_utils
+"src/driver/main.native": use_cudd
+"src/driver/main.native": use_parsing
+"src/driver/main.native": use_rltl
+"src/driver/main.native": use_translator
+"src/driver/main.native": use_typing
+"src/driver/main.native": use_utils
 <src/*.ml{,i}>: use_cudd
 <src/*.ml{,i}>: use_parsing
 <src/*.ml{,i}>: use_rltl
