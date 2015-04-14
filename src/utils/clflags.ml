@@ -15,4 +15,7 @@ and dump_intcode = ref false              (* -dintcode *)
 
 let nfa = ref false                       (* -nfa *)
 let ahw = ref false                       (* -ahw *)
+let nbw = ref false                       (* -nbw *)
 let psl = ref false                       (* -psl *)
+
+let ranking = ref "stratified"            (* -kind *)

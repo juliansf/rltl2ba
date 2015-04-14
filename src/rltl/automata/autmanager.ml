@@ -1,42 +1,57 @@
 
 open Exptree
 open Exptypes
+open Shared
 
 exception InvalidExpression of node
 exception ExpressionNotFound of node
 
+module Nbw = Nbw.Make(Ahw.Make(Nfa.Make(Bool.Default.B)))
 module Ahw = Ahw.Make(Nfa.Make(Bool.Default.B))
 module Nfa = Nfa.Make(Bool.Default.B)
 module Cudd = Bool.Default.B
+
 type t =
   {
     mutable aut_size: int;
     aut_bddmgr: Bdd.manager;
     aut_expmgr: Manager.t;
     aut_ahwmgr: Ahw.manager;
+    aut_nbwmgr: Nbw.manager;
     aut_label: (Node.t, Cudd.t) Hashtbl.t;
     aut_nfa: (Node.t, Nfa.t) Hashtbl.t;
     aut_ahw: (Node.t, Ahw.t) Hashtbl.t;
+    aut_nbw: (Node.t, Nbw.t) Hashtbl.t;
   }
 
 type label = Cudd.t
 type nfa = Nfa.t
 type ahw = Ahw.t
+type nbw = Nbw.t
+
 type automata =
+| Nbw of nbw
 | Ahw of ahw
 | Nfa of nfa
+
+let fullRank = Shared.FullRank
+let maxTwoRank = Shared.MaxTwoRank
+let stratifiedRank = Shared.StratifiedRank
 
 let init expmgr =
   let size = Manager.size expmgr in
   let bddmgr = Bdd.init () in
+  let ahwmgr = Ahw.init bddmgr in
   {
     aut_size = size;
     aut_bddmgr = bddmgr;
     aut_expmgr = expmgr;
-    aut_ahwmgr = Ahw.init bddmgr;
+    aut_ahwmgr = ahwmgr;
+    aut_nbwmgr = Nbw.init ahwmgr;
     aut_label = Hashtbl.create size;
     aut_nfa = Hashtbl.create size;
     aut_ahw = Hashtbl.create size;
+    aut_nbw = Hashtbl.create size;
   }
 
 let size {aut_expmgr} = Manager.size aut_expmgr
@@ -154,7 +169,7 @@ let rec get_ahw ?simpl:(simpl=false) mgr node =
     Expgen_private.make_rltl mgr.aut_expmgr node;
     match e.Exptree.exp_rltl with
     | None -> raise (InvalidExpression node)
-    | Some r ->
+    | Some r -> try
       begin
         let rho = match r with
           | RltlTrue -> Ahw.top amgr
@@ -163,8 +178,10 @@ let rec get_ahw ?simpl:(simpl=false) mgr node =
           | RltlNot n -> failwith "__file__:__line__: [internal error] cannot ocurr."
             (*Ahw.negate (get_ahw mgr n)*)
           | RltlOr (n1,n2) -> Ahw.disj amgr (get_ahw mgr n1) (get_ahw mgr n2)
-          | RltlAnd (n1,n2) -> Ahw.conj amgr (get_ahw mgr n1) (get_ahw mgr n2)
-          | RltlSeq (kind, olap, nr, nx) ->
+          | RltlAnd (n1,n2) ->
+            (try Ahw.conj amgr (get_ahw mgr n1) (get_ahw mgr n2)
+            with Not_found -> failwith "Autmanager.get_ahw.RltlAnd")
+          | RltlSeq (kind, olap, nr, nx) -> (try
             begin
               let r = get_nfa mgr nr in
               let x = get_ahw mgr nx in
@@ -174,9 +191,9 @@ let rec get_ahw ?simpl:(simpl=false) mgr node =
                 | Universal, WithOverlap -> Ahw.univ_fusion
                 | Universal, WithoutOverlap -> Ahw.univ_concat
               in
-              f amgr r x
-            end
-          | RltlPower (kind, olap, nx, ny, nr) ->
+              try f amgr r x with Not_found -> failwith "RltlSeq.f"
+            end with Not_found -> failwith "__file__:__line__: RltlSeq")
+          | RltlPower (kind, olap, nx, ny, nr) -> (try
             begin
               let r = get_nfa mgr nr in
               let x = get_ahw mgr nx in
@@ -192,7 +209,7 @@ let rec get_ahw ?simpl:(simpl=false) mgr node =
                 | DualWeakPower, WithoutOverlap -> Ahw.dual_weak_power
               in
               f amgr x r y
-            end
+            end with Not_found -> failwith "__file__:__line__: RltlPower")
           | RltlClosure (cfl, n) ->
             begin
               match cfl with
@@ -204,4 +221,9 @@ let rec get_ahw ?simpl:(simpl=false) mgr node =
         Hashtbl.add mgr.aut_ahw node rho;
         rho
       end
+      with Not_found -> failwith "__file__:__line__: get_ahw"
   end
+
+let get_nbw ?(rank=Shared.StratifiedRank) mgr node =
+  let ahw = get_ahw ~simpl:true mgr node in
+  Nbw.from_ahw ~rank:rank mgr.aut_nbwmgr ahw

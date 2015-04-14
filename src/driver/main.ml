@@ -50,18 +50,23 @@ let show_config () =
 module Options = Main_args.Make_rltlba_options(struct
   let set r () = r := true
   let unset r () = r := false
-  let set_kind (a,b) ()=
-    if !b then raise (Arg.Bad "Options -nfa and -apw are incompatible")
+  let set_kind (a,b,c) ()=
+    if !b || !c then raise (Arg.Bad "Options -nfa, -apw and -nbw are incompatible")
     else a := true
   let _annot = set annot
-  let _ahw = set_kind (ahw,nfa)
+  let _ahw = set_kind (ahw,nfa,nbw)
   let _dintcode = set dump_intcode
   let _dparsetree = set dump_parsetree
   let _dot = set dot
   let _i = anon
-  let _nfa = set_kind (nfa,ahw)
+  let _nbw = set_kind (nbw,nfa,ahw)
+  let _nfa = set_kind (nfa,ahw,nbw)
   let _o s = output_name := Some s
   let _psl = (fun _ -> Printf.fprintf stderr "setting psl...\n"; set psl ())
+  let _rank s =
+    match s with
+    | "full" | "max2" | "stratified" -> ranking := s
+    | _ -> raise (Arg.Bad ("Unknown ranking '" ^ s ^ "'"))
   let _s = (fun s -> str s)
 (*  let _stdin () = set use_stdin *)
   let _verbose n = verbose := n
@@ -75,6 +80,9 @@ let fatal err =
 let main () =
   try
     Arg.parse Options.list anon usage;
+    (*Gc.print_stat stderr;*)
+    Printf.eprintf "Memory used: %s\n\n"
+      (Misc.human_readable_byte_count (Gc.allocated_bytes ()));
     exit 0
   with e ->
     Errors.report_error ppf e;

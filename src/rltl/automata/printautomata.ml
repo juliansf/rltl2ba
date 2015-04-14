@@ -1,7 +1,5 @@
 open Autmanager
 
-module Ahw = Ahw.Make(Nfa.Make(Bool.Default.B))
-
 let print_manager fmt mgr =
   Printbdd.print_vars fmt mgr.aut_bddmgr
 
@@ -19,6 +17,12 @@ let print_ahw mgr fmt ahw : unit =
 
 let ahw2dot mgr fmt ahw : unit =
   Printahw.ahw2dot mgr.aut_ahwmgr fmt ahw
+
+let print_nbw mgr fmt nbw =
+  Printnbw.print_nbw mgr.aut_nbwmgr fmt nbw
+
+let nbw2dot mgr fmt nbw : unit =
+  Printnbw.nbw2dot mgr.aut_nbwmgr fmt nbw
 
 (*
 let print_nfa mgr fmt nfa : unit =

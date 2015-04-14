@@ -1,11 +1,12 @@
 # OASIS_START
-# DO NOT EDIT (digest: 267fdcb0d2026bf98243e81d2aa5291b)
+# DO NOT EDIT (digest: 693b27767d64eeaae8b51ba39acce6c2)
 Rltl
 Expgen_private
 Manager
 Node
 Printexpr
 Exptree
+Shared
 automata/Bdd
 automata/Bdd_plus
 automata/Bool
@@ -14,6 +15,8 @@ automata/Nfa
 automata/Printnfa
 automata/Ahw
 automata/Printahw
+automata/Nbw
+automata/Printnbw
 automata/Autmanager
 automata/Printautomata
 # OASIS_STOP

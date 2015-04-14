@@ -173,16 +173,28 @@ let print_expr ppf (mgr, node) =
   Format.fprintf ppf "\n# Result: %d\n" (Rltl.Expgen.node_id node)
 
 let automata (mgr,node) =
+  try
   let autmgr = Automata.init mgr in
   let automata =
     if !Clflags.nfa then
       Automata.Nfa (Automata.get_nfa autmgr node)
+    else if !Clflags.nbw then
+      let rank = match !Clflags.ranking with
+        | "full" -> Automata.fullRank
+        | "max2" -> Automata.maxTwoRank
+        | _ -> Automata.stratifiedRank
+      in
+      Automata.Nbw (Automata.get_nbw ~rank:rank autmgr node)
     else if !Clflags.ahw then
       Automata.Ahw (Automata.get_ahw autmgr node ~simpl:false)
     else
       Automata.Ahw (Automata.get_ahw autmgr node ~simpl:false)
   in
   autmgr,automata
+  with Not_found ->
+    let s = Format.sprintf "Translate.automata(%d,%B,%B,%B)"
+      (Rltl.Expgen.node_id node) !Clflags.nfa !Clflags.ahw !Clflags.nbw in
+    failwith s
 
 let print_automata fmt (mgr,automata) =
   (*Automata.print_manager fmt mgr;*)
@@ -204,4 +216,13 @@ let print_automata fmt (mgr,automata) =
       else
         Format.fprintf fmt "-- AHW:@\n%a"
           (Automata.print_ahw mgr) ahw
+    end
+  | Automata.Nbw nbw ->
+    begin
+      if !Clflags.dot then
+        Format.fprintf fmt "/* NBW: */@\n%a"
+          (Automata.nbw2dot mgr) nbw
+      else
+        Format.fprintf fmt "/* NBW */@\n%a"
+          (Automata.print_nbw mgr) nbw
     end

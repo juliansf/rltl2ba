@@ -6,9 +6,11 @@ module type Rltlba_options = sig
   val _dparsetree : unit -> unit
   val _dot : unit -> unit
   val _i : string -> unit
+  val _nbw : unit -> unit
   val _nfa : unit -> unit
   val _o : string -> unit
   val _psl : unit -> unit
+  val _rank : string -> unit
   val _s : string -> unit
 (*  val _stdin : unit -> unit *)
   val _verbose : int -> unit

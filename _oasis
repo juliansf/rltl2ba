@@ -70,6 +70,7 @@ Library rltl
                    Node,
                    Printexpr,
                    Exptree,
+                   Shared,
                    automata/Bdd,
                    automata/Bdd_plus,
                    automata/Bool,
@@ -78,6 +79,8 @@ Library rltl
                    automata/Printnfa,
                    automata/Ahw,
                    automata/Printahw,
+                   automata/Nbw,
+                   automata/Printnbw,
                    automata/Autmanager,
                    automata/Printautomata
   ByteOpt: -bin-annot
@@ -93,7 +96,7 @@ Library parsing
                    Psl_lexer,
                    Printast
   BuildDepends: utils
-  CompiledObject: best
+  CompiledObject: native
   BuildTools+: ocamllex, menhir
   FindlibParent: rltl
   Install$: flag(libraries)
@@ -109,7 +112,7 @@ Library typing
            Typedtree,
            Typeenv
   BuildDepends: rltl.parsing
-  CompiledObject: best
+  CompiledObject: native
   FindlibParent: rltl
   Install$: flag(libraries)
   ByteOpt: -bin-annot
@@ -121,7 +124,7 @@ Library translator
   InternalModules: Entry,
                    Operpredef
   BuildDepends: rltl, rltl.typing
-  CompiledObject: best
+  CompiledObject: native
   FindlibParent: rltl
   Install$: flag(libraries)
   ByteOpt: -bin-annot
@@ -138,7 +141,7 @@ Library driver
 
 Executable "rltl2ba"
   Path: src
-  CompiledObject: best
+  CompiledObject: native
   BuildDepends: cudd, utils, rltl, rltl.parsing, rltl.typing, rltl.translator
   MainIs: driver/main.ml
 
