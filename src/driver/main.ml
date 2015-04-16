@@ -62,7 +62,7 @@ module Options = Main_args.Make_rltlba_options(struct
   let _nbw = set_kind (nbw,nfa,ahw)
   let _nfa = set_kind (nfa,ahw,nbw)
   let _o s = output_name := Some s
-  let _psl = (fun _ -> Printf.fprintf stderr "setting psl...\n"; set psl ())
+  let _psl = set psl
   let _rank s =
     match s with
     | "full" | "max2" | "stratified" -> ranking := s

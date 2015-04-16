@@ -86,6 +86,10 @@ rule token = parse
       comment lexbuf; token lexbuf
     }
 
+(* True and False *)
+| '0'  { FALSE }
+| '1'  { TRUE }
+
 (* Keywords and identifiers *)
 | (lowercase | uppercase) identchar * as s
     {
