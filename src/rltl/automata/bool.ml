@@ -86,7 +86,7 @@ struct
     | Atom s -> X.to_string s
     | State i -> string_of_int i
     | Not(And _ as x) | Not(Or _ as x) -> "!(" ^ to_string x ^ ")"
-    | Not x -> "~" ^ to_string x
+    | Not x -> "!" ^ to_string x
     | And ((Or _ as x), (Or _ as y)) ->
       "("^ to_string x ^") && ("^ to_string y ^")"
     | And (Or _ as x, y) -> "("^ to_string x ^") && "^ to_string y

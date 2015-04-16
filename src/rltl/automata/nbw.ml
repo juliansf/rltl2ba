@@ -283,6 +283,8 @@ struct
     let nodes_map = Hashtbl.create 8 in
 
     let compute () =
+      let timer01 = new Misc.timer in
+      timer01#start;
       Queue.add (!initial) waiting;
       while not (Queue.is_empty waiting) do
         let x = Queue.take waiting in
@@ -297,12 +299,13 @@ struct
             let ap = Label.arrows_product (Hashtbl.find cache i) t in
             ap
           ) x atrue in
-          (*show_arrows x a;*)
+          show_arrows x a;
           IntSetHashtbl.iter (fun y _ -> Queue.add y waiting) a;
           IntSetHashtbl.add nbw_delta x a;
         end;
       done;
-
+      timer01#stop;
+      Printf.eprintf "Arrows product time: %f\n" (timer01#value);
       (*IntSetHashtbl.iter (fun x a ->
         Format.eprintf "node: %a" (show_arrows_dot (!initial) x) a
       ) nbw_delta;*)

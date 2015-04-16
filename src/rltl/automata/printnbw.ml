@@ -109,7 +109,8 @@ let show_delta_neverclaim accept_all istates node fmt dt =
   Hashtbl.iter (fun node' l ->
     let label = Label.to_string l in
     if state_is_true node' then
-      Format.fprintf fmt ":: atomic { (%s) -> assert (!(%s)) }@;" label label
+      Format.fprintf fmt ":: atomic { (%s) -> assert (!(%s)) }@;"
+        label label
     else
       Format.fprintf fmt ":: (%s) -> goto %a@;" label  print_init_node node'
   ) dt;
