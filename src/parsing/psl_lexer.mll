@@ -27,9 +27,12 @@
     create_hashtable 10 [
       "always", ALWAYS;
       "FALSE", FALSE;
+      "F", EVENTUALLY;
+      "G", ALWAYS;
       "MODULE", MODULE;
       "never", NEVER;
       "PSLSPEC", PSLSPEC;
+      "R", RELEASE;
       "TRUE", TRUE;
       "U", UNTIL;
       "V", RELEASE;

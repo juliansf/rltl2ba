@@ -55,6 +55,7 @@
 %token COLON
 %token DIAMONDIMPL
 %token EOF
+%token EVENTUALLY
 %token FALSE
 %token <string> IDENT
 %token LB
@@ -87,7 +88,7 @@
 %right SEMI COLON
 %right STAR
 
-%nonassoc ALWAYS BANG NEVER NEXT
+%nonassoc EVENTUALLY ALWAYS BANG NEVER NEXT
 
 
 /* Entry points */
@@ -152,6 +153,11 @@ psl_expr:
     {
       mkexp (Pexp_power (Release, x, y, None)) $startpos $endpos
     }
+| EVENTUALLY x=psl_expr
+    { mkexp (Pexp_power (Until,
+        mkexp (Pexp_boolconst "true") $startpos $endpos,
+        x, None))
+        $startpos $endpos }
 | ALWAYS x=psl_expr
     { mkexp (Pexp_power (WeakUntil, x,
         mkexp (Pexp_boolconst "false") $startpos $endpos, None))
