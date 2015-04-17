@@ -295,11 +295,12 @@ struct
               Hashtbl.add cache i a
           ) x;
           let atrue = Label.arrows Label.dtrue in
-          let a = IS.fold (fun i t -> (* This fold computation has a lot of room for improvement *)
+          let a = IS.fold (fun i t ->
+            (*************** This fold computation has a lot of room for improvement *)
             let ap = Label.arrows_product (Hashtbl.find cache i) t in
             ap
           ) x atrue in
-          (*show_arrows x a;*)
+          show_arrows x a;
           IntSetHashtbl.iter (fun y _ -> Queue.add y waiting) a;
           IntSetHashtbl.add nbw_delta x a;
         end;

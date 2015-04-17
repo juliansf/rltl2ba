@@ -151,14 +151,15 @@ struct
     | And(x,y) -> dor' (dnot' x) (dnot' y)
     | Or(x,y) -> dand' (dnot' x) (dnot' y)
     | x -> Not(x)
-  and dand' x y = match x,y with
+  and dand' x y =
+    match x,y with
     | False,_ | _,False -> False
     | True,z | z,True -> z
     | Or(s,t), y | y, Or(s,t) -> dor' (dand' s y) (dand' t y)
     | (And _ as x),y | y,(And _ as x) ->
       let terms = (conj_list x) @ (conj_list y) in
       List.fold_right (fun x f ->
-        match f with | True -> x | _ -> And(x,f)) (uniques True terms) True
+        match f with | True -> x | _ -> And(x,f)) (uniques False terms) True
     | x,y when x=y -> x
     | x,y -> dand x y
 
@@ -169,10 +170,15 @@ struct
     | And(Atom p, Atom q), Atom r
     | Atom r, And(Atom p, Atom q) when p=r || q=r -> Atom r
 
-    | And(Atom p, Atom q), Not (Atom r)
+    (*| And(Atom p, Atom q), Not (Atom r)
     | And(Atom q, Atom p), Not (Atom r)
     | And(Not(Atom p), Atom q), Atom r
-    | And(Atom q, Not(Atom p)), Atom r when p=r -> Atom q
+    | And(Atom q, Not(Atom p)), Atom r when p=r -> Atom q*)
+    (*| And(x,y), Not z
+    | And(y,x), Not z
+    | Not z, And(x,y)
+    | Not z, And(y,x)
+    | *)
     | x,y when x=y -> x
     | _ -> merge_disj x y
 
@@ -190,6 +196,7 @@ struct
 
   and merge_conj x y =
     (* We assume [x] and [y] are simplified conjunctions. *)
+    (*Printf.printf "x = %s;  y = %s\n" (to_string x) (to_string y);*)
     let xs,ys = conj_list x, conj_list y in
     let x,y,xs,ys = if List.length xs <= List.length ys
       then x,y,xs,ys else y,x,ys,xs in
@@ -200,6 +207,7 @@ struct
 
   and merge_disj x y =
     (* We assume [x] and [y] are both SOP *)
+    (*Printf.printf "x = %s;  y = %s\n" (to_string x) (to_string y);*)
     let xs,ys = disj_list x, disj_list y in
     let xs,ys = List.fold_right (fun w (zs,us) ->
       let (vs,seen) = propagate_disj w zs in
@@ -602,11 +610,12 @@ struct
     IntSetHashtbl.iter (fun ix lx ->
       IntSetHashtbl.iter (fun iy ly ->
         let is = IS.union ix iy in
+        (*Printf.eprintf "lx = %s;  ly = %s\n" (to_string lx) (to_string ly);*)
         let l = dand' lx ly in
         let l' = try IntSetHashtbl.find res is with Not_found -> False in
-        (*Printf.eprintf "BEFORE: %s\n" (to_string (dor l l'));*)
+        (*Printf.eprintf "BEFORE: **%s** **%s**\n" (to_string l) (to_string l');*)
         let label = dor' l l' in
-        (*Printf.eprintf "AFTER:  %s\n" (to_string label);*)
+        (*Printf.eprintf "AFTER:  %s\n\n" (to_string label);*)
 
         if not (is_false label) then
           IntSetHashtbl.replace res is label
