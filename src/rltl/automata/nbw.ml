@@ -300,7 +300,7 @@ struct
             let ap = Label.arrows_product (Hashtbl.find cache i) t in
             ap
           ) x atrue in
-          show_arrows x a;
+          (*show_arrows x a;*)
           IntSetHashtbl.iter (fun y _ -> Queue.add y waiting) a;
           IntSetHashtbl.add nbw_delta x a;
         end;
