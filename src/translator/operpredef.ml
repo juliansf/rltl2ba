@@ -19,6 +19,10 @@ let build_initial_env add_builtin mgr =
     FunEntry (fun x -> FunEntry (fun y ->
       ValEntry (Expgen.bool_or mgr (val_entry x) (val_entry y))));
 
+    "^",
+    FunEntry (fun x -> FunEntry (fun y ->
+      ValEntry (Expgen.bool_xor mgr (val_entry x) (val_entry y))));
+
     "->",
     FunEntry (fun x -> FunEntry (fun y ->
       ValEntry (Expgen.bool_impl mgr (val_entry x) (val_entry y))));
@@ -78,6 +82,10 @@ let build_initial_env add_builtin mgr =
     "or",
     FunEntry (fun x -> FunEntry (fun y ->
       ValEntry (Expgen.rltl_or mgr (val_entry x) (val_entry y))));
+
+    "xor",
+    FunEntry (fun x -> FunEntry (fun y ->
+      ValEntry (Expgen.rltl_xor mgr (val_entry x) (val_entry y))));
 
     "implies",
     FunEntry (fun x -> FunEntry (fun y ->

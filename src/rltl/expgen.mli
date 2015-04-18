@@ -20,6 +20,7 @@ val const_false: node
 val bool_not: manager -> node -> node
 val bool_and: manager -> node -> node -> node
 val bool_or: manager -> node -> node -> node
+val bool_xor: manager -> node -> node -> node
 val bool_impl: manager -> node -> node -> node
 val bool_iff: manager -> node -> node -> node
 
@@ -30,6 +31,7 @@ val regex_concat: manager -> overlap_flag -> node -> node -> node
 
 val rltl_not: manager -> node -> node
 val rltl_or: manager -> node -> node -> node
+val rltl_xor: manager -> node -> node -> node
 val rltl_and: manager -> node -> node -> node
 val rltl_impl: manager -> node -> node -> node
 val rltl_iff: manager -> node -> node -> node

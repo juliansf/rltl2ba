@@ -57,6 +57,7 @@
 %token EOF
 %token EVENTUALLY
 %token FALSE
+%token HAT
 %token <string> IDENT
 %token LB
 %token LESSMINUSGREATER
@@ -75,6 +76,7 @@
 %token TRUE
 %token UNTIL
 %token VAR
+%token XOR
 
 /* Precedences from low to high */
 %left UNTIL RELEASE
@@ -82,8 +84,8 @@
 %right MINUSGREATER
 %left LESSMINUSGREATER
 %left BARBAR PLUS
-%left AMPERAMPER
-%left BAR
+%left AMPERAMPER XOR
+%left BAR HAT
 %left AMPERSAND
 %right SEMI COLON
 %right STAR
@@ -189,6 +191,7 @@ psl_expr:
 | BAR { "or" }
 | MINUSGREATER { "implies" }
 | LESSMINUSGREATER { "iff" }
+| XOR { "xor" }
 ;
 
 regex_expr:
@@ -233,8 +236,10 @@ ident:
 | BAR { "|" }
 | BARBAR { "||" }
 | COLON { ":" }
+| HAT { "^" }
 | LESSMINUSGREATER { "<->" }
 | MINUSGREATER { "->" }
 | PLUS { "+" }
 | SEMI { ";" }
+| XOR  { "^" }
 ;
