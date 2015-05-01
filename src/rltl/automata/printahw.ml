@@ -211,19 +211,20 @@ let ahw2dot mgr fmt ahw =
 let print_ahw mgr fmt ahw =
   reset();
 
-  Printf.eprintf "AHW(%d) size: " ahw;
-  Printf.eprintf "%d\n" (Ahw.size mgr ahw);
-
   (* Print the initial state *)
-  Format.fprintf fmt "start: %d@;" (rename_state ahw);
+  let init = get_init mgr ahw in
+  Format.fprintf fmt "-- size: %d\n" (Ahw.size mgr ahw);
+  Format.fprintf fmt "start: %s@\n" (Ahw.Nfa.Label.to_string (get_init mgr ahw));
 
   (* BFS traversal of the AHW *)
   let waiting : state Queue.t = Queue.create () in
   let visited : (state,unit) Hashtbl.t = Hashtbl.create 8 in
 
   (* Add the initial state *)
-  Queue.add ahw waiting;
-  Hashtbl.add visited ahw ();
+  let initials = Misc.uniques (Ahw.Nfa.Label.states (get_init mgr ahw)) in
+  List.iter (fun i ->
+    Printf.eprintf "s:%d\n" i;
+    Queue.add i waiting; Hashtbl.add visited i ()) initials;
   while not (Queue.is_empty waiting) do
     let q = Queue.take waiting in
     let delta =
@@ -234,8 +235,12 @@ let print_ahw mgr fmt ahw =
     let hk = stratum_kind mgr h in
     let hs = get_stratum_size mgr ahw h in
     let h_states = get_stratum_states mgr h in
-    Format.fprintf fmt "%4d [%d,%s,%d] : " (rename_state q) (rename_stratum h) hk hs;
-    Format.fprintf fmt "%s@\n" (Ahw.Nfa.Label.to_string delta);
+    Format.fprintf fmt "%4d [%d,%s,%d] : @\n"
+      (rename_state q) (rename_stratum h) hk hs;
+    List.iter (fun t ->
+      Format.fprintf fmt "    :: %s @\n" (Ahw.Nfa.Label.to_string t))
+      (Ahw.Nfa.Label.disj_list delta);
+    Format.fprintf fmt "\n";
     Ahw.Nfa.Label.iter_states (fun i ->
       if not (Hashtbl.mem visited i) then begin
         Hashtbl.add visited i ();

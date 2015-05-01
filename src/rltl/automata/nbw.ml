@@ -259,6 +259,7 @@ struct
     in
 
     let size = Ahw.size mgr.nbw_ahwmgr ahw in
+    let init_disj = Label.disj_list (Ahw.get_init mgr.nbw_ahwmgr ahw) in
     let state_number = ref (0) in
     let f_number = ref (0) in
     let node_number = ref (-1) in
@@ -271,7 +272,8 @@ struct
     let waiting = Queue.create () in
     let nbw_delta = IntSetHashtbl.create 8 in
     let cache = Hashtbl.create 8 in
-    let initial = ref (IS.singleton ahw) in
+(*  let initial = ref (IS.singleton ahw) in *)
+    let initial = IntSetHashtbl.create (List.length init_disj) in
     let delta = Hashtbl.create 8 in
     let state_sets : int IntSetHashtbl.t = IntSetHashtbl.create 8 in
     let state_sets_reverse : (int, IS.t) Hashtbl.t = Hashtbl.create 8 in
@@ -285,7 +287,12 @@ struct
     let compute () =
       let timer01 = new Misc.timer in
       timer01#start;
-      Queue.add (!initial) waiting;
+      List.iter (fun l ->
+        let ls = List.fold_right IS.add (Label.states l) IS.empty in
+        IntSetHashtbl.add initial ls ();
+        Queue.add ls waiting;
+      ) init_disj;
+      (*Queue.add (!initial) waiting;*)
       while not (Queue.is_empty waiting) do
         let x = Queue.take waiting in
         if not (IntSetHashtbl.mem nbw_delta x) then begin
@@ -323,7 +330,7 @@ struct
             IntSetHashtbl.add reverse x (IntSetHashtbl.create 2);
           IntSetHashtbl.find reverse x in
 
-      Queue.add (!initial) waiting;
+      IntSetHashtbl.iter (fun is _ -> Queue.add is waiting) initial;
       while not (Queue.is_empty waiting) do
         let y = Queue.take waiting in
         if not (IntSetHashtbl.mem visited y) then begin
@@ -356,7 +363,9 @@ struct
           let t = IntSetHashtbl.copy dead in
 
           IntSetHashtbl.iter (fun x l ->
-            if x = (!initial) then raise Exit;
+            IntSetHashtbl.remove initial x;
+            if IntSetHashtbl.length initial = 0 then raise Exit;
+
             IntSetHashtbl.iter (fun y _ ->
               if y != x then IntSetHashtbl.add boundary y ()) (get_reverse x)
           ) t;
@@ -385,8 +394,8 @@ struct
         with Exit -> (
           (*Format.eprintf "initial is dead: %a@." printset (!initial);*)
           (*IntSetHashtbl.remove nbw_delta (!initial);*)
-          if IntSetHashtbl.find dead (!initial) then
-            initial := IS.empty
+          (*if IntSetHashtbl.find dead (!initial) then
+            initial := IS.empty*)
         );
       end;
       (* ... here the automaton can be simplified ... END *)
@@ -396,32 +405,34 @@ struct
         Format.eprintf "simplified node: "; show_arrows x a
         ) nbw_delta;*)
 
-      let init_delta = IntSetHashtbl.find nbw_delta (!initial) in
-      if IntSetHashtbl.length init_delta > 0 then begin
-        let init_elements = IS.elements (!initial) in
-        let init_size = IS.cardinal (!initial) in
-        let r_init =
-          List.map (rank mgr ahw rank_type (2*size)) init_elements in
-        let f_init = combine_ranks r_init in
-
+      if IntSetHashtbl.length initial > 0 then begin
         let waiting = Queue.create () in
+        IntSetHashtbl.iter (fun is _ ->
+          let init_elements = IS.elements is in
+          List.iter (Printf.eprintf "%d ") init_elements;
+          Printf.eprintf "\n";
+          let init_size = IS.cardinal is in
+          let r_init =
+            List.map (rank mgr ahw rank_type (2*size)) init_elements in
+          let f_init = combine_ranks r_init in
 
-        (* Create the initial states *)
-        let s = Array.of_list init_elements in
-        List.iter (fun fs ->
-          let ok = ref true in
-          let f = Array.of_list fs in
-          let o = Array.init init_size (fun i ->
-            let c = not (is_good (s.(i))) && f.(i) mod 2 = 0 in
-            if c then ok := false; c) in
-          let node = { s = s; o = o; f = f; ok = !ok; } in
-          Hashtbl.add initial_states node ();
-          Queue.add node waiting;
-        ) f_init;
+          (* Create the initial states *)
+          let s = Array.of_list init_elements in
+          List.iter (fun fs ->
+            let ok = ref true in
+            let f = Array.of_list fs in
+            let o = Array.init init_size (fun i ->
+              let c = not (is_good (s.(i))) && f.(i) mod 2 = 0 in
+              if c then ok := false; c) in
+            let node = { s = s; o = o; f = f; ok = !ok; } in
+            Hashtbl.add initial_states node ();
+            Queue.add node waiting;
+          ) f_init;
+        ) initial;
 
 
         while not (Queue.is_empty waiting) do
-          let node = Queue.take waiting in
+          let node : state = Queue.take waiting in
           if not (Hashtbl.mem nodes_map node) then begin
             let node_idx = new_node () in
             Hashtbl.add nodes_map node (node_idx);
@@ -472,7 +483,7 @@ struct
               ) f_is;
             ) s_arrows;
             Hashtbl.add delta node node_delta;
-          end;
+            end;
         done;
       end;
 

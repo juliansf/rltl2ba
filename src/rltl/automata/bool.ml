@@ -50,6 +50,8 @@ module type S = sig
 
   val disj_list : t -> t list
   val conj_list : t -> t list
+  val merge_disj : t -> t -> t
+  val merge_conj : t -> t -> t list
 
   val to_string : t -> string
 
@@ -143,7 +145,8 @@ struct
     | Not x, Not y -> Not(And(x,y))
     | _ -> if x < y then Or (x,y) else Or(y,x)
 
-  let rec dnot' x = match x with
+  let rec dnot' x =
+    match x with
     | True -> False
     | False -> True
     | State i -> State i
@@ -159,7 +162,14 @@ struct
     | (And _ as x),y | y,(And _ as x) ->
       let terms = (conj_list x) @ (conj_list y) in
       List.fold_right (fun x f ->
-        match f with | True -> x | _ -> And(x,f)) (uniques False terms) True
+        match f with
+        | True -> x
+        | False -> False
+        | _ -> match x with
+          | True -> f
+          | False -> False
+          | _ -> And(x,f)
+      ) (uniques False terms) True
     | x,y when x=y -> x
     | x,y -> dand x y
 
@@ -201,7 +211,7 @@ struct
     let x,y,xs,ys = if List.length xs <= List.length ys
       then x,y,xs,ys else y,x,ys,xs in
     let t = Hashtbl.create (List.length ys) in
-    List.iter (fun v -> Hashtbl.add t v ()) ys;
+    List.iter (fun v -> if v != True then Hashtbl.add t v ()) ys;
     try List.iter (Hashtbl.find t) xs; [x]
     with Not_found -> [x;y]
 
@@ -411,7 +421,6 @@ struct
           match x',y' with
           | False,z | z,False -> False
           | True,z | z,True -> z
-          | Not x, Not y -> Not(Or(x,y))
           | Or(x,y), Or(v,w) ->
             if x=v then simplify (And(x,Or(y,w)))
             else if x=w then simplify (And(x,Or(y,v)))
@@ -435,7 +444,6 @@ struct
           match x',y' with
           | True,z | z,True -> True
           | False,z | z,False -> z
-          | Not x, Not y -> Not(And(x,y))
           | x, And(y,z) | And(y,z), x ->
             if x=y || x=z then x
             else Or(x,And(y,z))
@@ -447,6 +455,8 @@ struct
     | x -> x
     in
     f'
+
+  (*let simplify f = f*)
 
   let rec iter_states fn f =
     match f with

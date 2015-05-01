@@ -28,12 +28,14 @@
       "always", ALWAYS;
       "FALSE", FALSE;
       "F", EVENTUALLY;
+      "false", FALSE;
       "G", ALWAYS;
       "MODULE", MODULE;
       "never", NEVER;
       "PSLSPEC", PSLSPEC;
       "R", RELEASE;
       "TRUE", TRUE;
+      "true", TRUE;
       "U", UNTIL;
       "V", RELEASE;
       "VAR", VAR;
