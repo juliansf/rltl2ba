@@ -62,6 +62,8 @@ struct
   type trans = (state, Ahw.Nfa.Label.t) Hashtbl.t
   type reference = int
 
+  exception NodeFound of state
+
   type nbw =
     {
       nbw_delta : (state,trans) Hashtbl.t;
@@ -144,7 +146,7 @@ struct
   let show_arrows x at =
     Format.eprintf "@[<v 2>{ ";
     IS.iter (fun i -> Format.eprintf "%d " i) x;
-    Format.eprintf "}: %s :@;" ""; (*(Label.to_string d);*)
+    Format.eprintf "}: %s %d:@;" "" (Hashtbl.hash at); (*(Label.to_string d);*)
 
     IntSetHashtbl.iter (fun is l ->
       Format.eprintf "{ ";
@@ -283,6 +285,56 @@ struct
         (int, (state,int) Hashtbl.t) Hashtbl.t = Hashtbl.create 8 in
     let initial_states = Hashtbl.create 8 in
     let nodes_map = Hashtbl.create 8 in
+    let node_rel  = Hashtbl.create 8 in
+    let node_rel_map = Hashtbl.create 8 in
+
+    let equal_deltas (dx : trans) (dy : trans) =
+      if Hashtbl.length dx = Hashtbl.length dy then begin
+        try Hashtbl.iter (fun ix lx ->
+            let ly = Hashtbl.find dy ix in
+            if Label.compare_bool lx ly != 0 then raise Not_found
+          ) dx; true
+        with Not_found -> false
+      end
+      else false
+    in
+
+    let equiv_node node =
+      if Hashtbl.mem node_rel_map node then begin
+        Hashtbl.find node_rel_map node
+      end
+      else begin
+        let succ = Hashtbl.find delta node in
+        let hash = Hashtbl.hash succ in
+        (*Format.eprintf "hash(succ(%a)) = %d@;" printset node hash;*)
+        if Hashtbl.mem node_rel hash then begin
+          let candidates = Hashtbl.find node_rel hash in
+          (*if Hashtbl.mem candidates succ then
+            let s = Hashtbl.find candidates succ in
+            IntSetHashtbl.add node_rel_map node s;
+            s
+          else begin*)
+            try Hashtbl.iter (fun succ' s ->
+                if equal_deltas succ succ' && s.ok = node.ok then
+                  raise (NodeFound s)
+              ) candidates;
+              Hashtbl.add candidates succ node;
+              Hashtbl.add node_rel_map node node;
+              node
+            with NodeFound s ->
+              Hashtbl.add node_rel_map node s;
+              s
+        (*end*)
+        end
+        else begin
+          let t = Hashtbl.create 1 in
+          Hashtbl.add t succ node;
+          Hashtbl.add node_rel hash t;
+          Hashtbl.add node_rel_map node node;
+          node
+        end
+      end
+    in
 
     let compute () =
       let timer01 = new Misc.timer in
@@ -310,10 +362,12 @@ struct
           (*show_arrows x a;*)
           IntSetHashtbl.iter (fun y _ -> Queue.add y waiting) a;
           IntSetHashtbl.add nbw_delta x a;
+          (*let enode = equiv_node x in
+            Format.eprintf "%a -> %a@\n@;@;" printset x printset enode;*)
         end;
       done;
       timer01#stop;
-      Printf.eprintf "Arrows product time: %f\n" (timer01#value);
+      Format.eprintf "Arrows product time: %f\n" (timer01#value);
       (*IntSetHashtbl.iter (fun x a ->
         Format.eprintf "node: %a" (show_arrows_dot (!initial) x) a
       ) nbw_delta;*)
@@ -324,6 +378,40 @@ struct
       let dead = IntSetHashtbl.create 8 in
       let visited = IntSetHashtbl.create delta_size in
       let waiting = Queue.create () in
+
+      (* Let's simplify it here by clashing equivalent nodes *)
+      (*
+      Format.eprintf "nbw_delta.size = %d\n" (IntSetHashtbl.length nbw_delta);
+      begin
+        try
+          IntSetHashtbl.iter (fun node succ ->
+              let enode = equiv_node node in
+              if enode != node then
+                IntSetHashtbl.remove nbw_delta node
+              else begin
+                (* The node has no equivalent, we just need to modify its delta. *)
+                let s = IntSetHashtbl.create (IntSetHashtbl.length succ) in
+                IntSetHashtbl.iter (fun is l ->
+                    let is = equiv_node is in
+                    if IntSetHashtbl.mem s is then
+                      let l' = IntSetHashtbl.find s is in
+                      IntSetHashtbl.replace s is (Label.dor l l')
+                    else
+                      IntSetHashtbl.add s is l
+                  ) succ;
+                IntSetHashtbl.replace nbw_delta node s
+              end
+            ) nbw_delta;
+        with Not_found -> begin
+            Printf.eprintf "node_rel.size = %d\n" (Hashtbl.length node_rel);
+            Hashtbl.iter (fun h _ ->
+                Printf.eprintf "hash: %d\n" h;
+              ) node_rel;
+            failwith "Arg! not found...";
+          end;
+      end;
+      Format.eprintf "nbw_delta.size = %d\n" (IntSetHashtbl.length nbw_delta);
+      IntSetHashtbl.iter show_arrows nbw_delta;*)
 
       let get_reverse x =
         if not (IntSetHashtbl.mem reverse x) then
@@ -483,6 +571,8 @@ struct
               ) f_is;
             ) s_arrows;
             Hashtbl.add delta node node_delta;
+            let enode = equiv_node node in ()
+            (*Format.eprintf "%a -> %a\n" print_node node print_node enode;*)
             end;
         done;
       end;
@@ -517,6 +607,34 @@ struct
       else compute ()) () in
 
     (* Here the automaton can be simplified as well *)
+
+    (* Clash equivalent nodes *)
+    (*Format.eprintf "delta.size = %d\n" (Hashtbl.length delta);*)
+    begin
+      try Hashtbl.iter (fun node succ ->
+          let enode = equiv_node node in
+          if enode != node then
+            Hashtbl.remove delta node
+          else begin
+            (* The node has no equivalent, we just need to modify its delta. *)
+            let s = Hashtbl.create (Hashtbl.length succ) in
+            Hashtbl.iter (fun is l ->
+                let is = equiv_node is in
+                if Hashtbl.mem s is then
+                  let l' = Hashtbl.find s is in
+                  Hashtbl.replace s is (Label.dor l l')
+                else
+                  Hashtbl.add s is l
+              ) succ;
+            Hashtbl.replace delta node s
+          end
+        ) delta;
+      with Not_found -> begin
+            failwith "Nbw.from_ahw::node_clashing.";
+          end;
+      end;
+      (*Format.eprintf "delta.size = %d\n" (Hashtbl.length delta);*)
+
 
     (* Clean the table of nodes - START *)
     let waiting = Queue.create () in
