@@ -9,6 +9,7 @@ let stratum_kind mgr h =
   | SReject -> "R"
   | SBuchi -> "B"
   | SCoBuchi -> "C"
+  | STransient -> "T"
 
 let stratum_color mgr h =
   match get_stratum_kind mgr h with

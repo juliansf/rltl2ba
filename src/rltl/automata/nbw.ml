@@ -63,6 +63,8 @@ struct
   type reference = int
 
   exception NodeFound of state
+  exception StateFound of IS.t
+  exception Node_found of int
 
   type nbw =
     {
@@ -129,6 +131,7 @@ struct
       begin
         let h = Ahw.get_stratum mgr.nbw_ahwmgr q in
         match Ahw.get_stratum_kind mgr.nbw_ahwmgr h with
+        | Ahw.STransient -> [1]
         | Ahw.SAccept -> [1]
         | Ahw.SReject -> [2]
         | Ahw.SBuchi -> if Ahw.is_final mgr.nbw_ahwmgr q then [1] else [2]
@@ -262,8 +265,8 @@ struct
 
     let size = Ahw.size mgr.nbw_ahwmgr ahw in
     let init_disj = Label.disj_list (Ahw.get_init mgr.nbw_ahwmgr ahw) in
-    let state_number = ref (0) in
-    let f_number = ref (0) in
+    let state_number = ref (-1) in
+    let f_number = ref (-1) in
     let node_number = ref (-1) in
 
     let new_count r = incr r; !r in
@@ -285,8 +288,12 @@ struct
         (int, (state,int) Hashtbl.t) Hashtbl.t = Hashtbl.create 8 in
     let initial_states = Hashtbl.create 8 in
     let nodes_map = Hashtbl.create 8 in
+    let nodes_map_reverse = Hashtbl.create 8 in
     let node_rel  = Hashtbl.create 8 in
     let node_rel_map = Hashtbl.create 8 in
+    let state_rel : (int, (Label.t IntSetHashtbl.t, IS.t) Hashtbl.t) Hashtbl.t = Hashtbl.create 8 in
+    let state_rel_map : IS.t IntSetHashtbl.t = IntSetHashtbl.create 8 in
+    let transient_states = IntSetHashtbl.create 8 in
 
     let equal_deltas (dx : trans) (dy : trans) =
       if Hashtbl.length dx = Hashtbl.length dy then begin
@@ -336,7 +343,63 @@ struct
       end
     in
 
-    let compute () =
+    let equiv_deltas (dx : Label.t IntSetHashtbl.t) (dy : Label.t IntSetHashtbl.t) =
+      if IntSetHashtbl.length dx = IntSetHashtbl.length dy then begin
+        try IntSetHashtbl.iter (fun ix lx ->
+            let ly = IntSetHashtbl.find dy ix in
+            if Label.compare_bool lx ly != 0 then raise Not_found
+          ) dx; true
+        with Not_found -> false
+      end
+      else false
+    in
+
+    let equiv_state (state : IS.t) =
+      if IntSetHashtbl.mem state_rel_map state then begin
+        IntSetHashtbl.find state_rel_map state
+      end
+      else begin
+        let succ = IntSetHashtbl.find nbw_delta state in
+        let hash = Hashtbl.hash succ in
+        (*Format.eprintf "hash(succ(%a)) = %d@;" printset node hash;*)
+        if Hashtbl.mem state_rel hash then begin
+          let candidates : (Label.t IntSetHashtbl.t, IS.t) Hashtbl.t =
+            Hashtbl.find state_rel hash in
+          (*if Hashtbl.mem candidates succ then
+            let s = Hashtbl.find candidates succ in
+            IntSetHashtbl.add node_rel_map node s;
+            s
+          else begin*)
+          try Hashtbl.iter (fun succ' s ->
+              if equiv_deltas succ succ' then
+                raise (StateFound s)
+            ) candidates;
+            Hashtbl.add candidates succ state;
+            IntSetHashtbl.add state_rel_map state state;
+            state
+          with StateFound s ->
+            IntSetHashtbl.add state_rel_map state s;
+            s
+        (*end*)
+        end
+        else begin
+          let t = Hashtbl.create 1 in
+          Hashtbl.add t succ state;
+          Hashtbl.add state_rel hash t;
+          IntSetHashtbl.add state_rel_map state state;
+          state
+        end
+      end
+    in
+
+    let replacing_state (state : IS.t) =
+      if IntSetHashtbl.mem state_rel_map state then
+        IntSetHashtbl.find state_rel_map state
+      else
+        state
+    in
+
+    let  compute () =
       let timer01 = new Misc.timer in
       timer01#start;
       List.iter (fun l ->
@@ -362,6 +425,9 @@ struct
           (*show_arrows x a;*)
           IntSetHashtbl.iter (fun y _ -> Queue.add y waiting) a;
           IntSetHashtbl.add nbw_delta x a;
+          let i = new_state () in
+          IntSetHashtbl.add state_sets x i;
+          Hashtbl.add state_sets_reverse i x;
           (*let enode = equiv_node x in
             Format.eprintf "%a -> %a@\n@;@;" printset x printset enode;*)
         end;
@@ -380,38 +446,80 @@ struct
       let waiting = Queue.create () in
 
       (* Let's simplify it here by clashing equivalent nodes *)
-      (*
-      Format.eprintf "nbw_delta.size = %d\n" (IntSetHashtbl.length nbw_delta);
+      (* First, compute the SCC's *)
+      (*Printf.eprintf "nbw_delta.size = %d\nstate_number+1 = %d\n"
+      (IntSetHashtbl.length nbw_delta) (!state_number+1);*)
+      let nbw_delta' = Array.init (!state_number+1) (fun i ->
+          let a = IntSetHashtbl.find nbw_delta
+              (Hashtbl.find state_sets_reverse i) in
+          (*Printf.eprintf "a.size = %d\n" (IntSetHashtbl.length a);*)
+          let succ = IntSetHashtbl.fold (fun is l xs ->
+              (l, IntSetHashtbl.find state_sets is)::xs
+            ) a [] in
+          succ
+        ) in
+      let nbw_scc = Ahw.Nfa.tarjanSCC nbw_delta' in
+      (*Array.iteri (fun sidx s ->
+          Printf.eprintf "SCC(%d)[%d]: " sidx (Array.length s);
+          Array.iter (fun i ->
+              Printf.eprintf "%i " (i)
+            ) s;
+          Printf.eprintf "\n";
+        ) nbw_scc;*)
+
+      (* Second, compute the transient states *)
+      Array.iter (fun states ->
+          if Array.length states = 1 &&
+             not (List.exists (fun (_,s) ->
+                 s=states.(0)) nbw_delta'.(states.(0)))
+          then
+            IntSetHashtbl.add transient_states
+              (Hashtbl.find state_sets_reverse (states.(0))) ();
+        ) nbw_scc;
+
+      (*Printf.eprintf "transient_states.size=%d\n"
+        (IntSetHashtbl.length transient_states);
+      IntSetHashtbl.iter (fun is _ ->
+          Format.eprintf "%a@." printset is;
+        ) transient_states;*)
+
+      (* Third, compute the equivalent states *)
+      (*Format.eprintf "nbw_delta.size = %d\n" (IntSetHashtbl.length nbw_delta);*)
+      IntSetHashtbl.iter (fun x _ ->
+          let x' = equiv_state x in ()
+          (*Format.eprintf "%a --> %a@." printset x printset x';*)
+          (*if x != x' then (* This state has an equivalent state. *)
+            IntSetHashtbl.remove nbw_delta x;*)
+        ) transient_states;
+
+      (* Fourth, replace states by their equivalent states.*)
       begin
         try
-          IntSetHashtbl.iter (fun node succ ->
-              let enode = equiv_node node in
-              if enode != node then
-                IntSetHashtbl.remove nbw_delta node
-              else begin
-                (* The node has no equivalent, we just need to modify its delta. *)
+          IntSetHashtbl.iter (fun x succ ->
+              begin
+                (* The state has no equivalent, we just need to modify its delta. *)
                 let s = IntSetHashtbl.create (IntSetHashtbl.length succ) in
                 IntSetHashtbl.iter (fun is l ->
-                    let is = equiv_node is in
+                    let is = replacing_state is in
                     if IntSetHashtbl.mem s is then
                       let l' = IntSetHashtbl.find s is in
                       IntSetHashtbl.replace s is (Label.dor l l')
                     else
                       IntSetHashtbl.add s is l
                   ) succ;
-                IntSetHashtbl.replace nbw_delta node s
+                IntSetHashtbl.replace nbw_delta x s
               end
             ) nbw_delta;
         with Not_found -> begin
-            Printf.eprintf "node_rel.size = %d\n" (Hashtbl.length node_rel);
+            Printf.eprintf "state_rel.size = %d\n" (Hashtbl.length state_rel);
             Hashtbl.iter (fun h _ ->
                 Printf.eprintf "hash: %d\n" h;
-              ) node_rel;
+              ) state_rel;
             failwith "Arg! not found...";
           end;
-      end;
-      Format.eprintf "nbw_delta.size = %d\n" (IntSetHashtbl.length nbw_delta);
-      IntSetHashtbl.iter show_arrows nbw_delta;*)
+        end;
+      (*Format.eprintf "nbw_delta.size = %d\n" (IntSetHashtbl.length nbw_delta);*)
+      (*IntSetHashtbl.iter show_arrows nbw_delta;*)
 
       let get_reverse x =
         if not (IntSetHashtbl.mem reverse x) then
@@ -497,8 +605,8 @@ struct
         let waiting = Queue.create () in
         IntSetHashtbl.iter (fun is _ ->
           let init_elements = IS.elements is in
-          List.iter (Printf.eprintf "%d ") init_elements;
-          Printf.eprintf "\n";
+          (*List.iter (Printf.eprintf "%d ") init_elements;*)
+          (*Printf.eprintf "\n";*)
           let init_size = IS.cardinal is in
           let r_init =
             List.map (rank mgr ahw rank_type (2*size)) init_elements in
@@ -512,6 +620,7 @@ struct
             let o = Array.init init_size (fun i ->
               let c = not (is_good (s.(i))) && f.(i) mod 2 = 0 in
               if c then ok := false; c) in
+            if IntSetHashtbl.mem transient_states is then ok := false;
             let node = { s = s; o = o; f = f; ok = !ok; } in
             Hashtbl.add initial_states node ();
             Queue.add node waiting;
@@ -524,6 +633,7 @@ struct
           if not (Hashtbl.mem nodes_map node) then begin
             let node_idx = new_node () in
             Hashtbl.add nodes_map node (node_idx);
+            Hashtbl.add nodes_map_reverse node_idx node;
             let {s;o;f;ok} = node in
             (*Format.eprintf "%d -> %a@." node_idx print_node node;*)
 
@@ -564,6 +674,7 @@ struct
                             with Exit -> true
                           end)) in
                   if c then ok' := false; c) in
+                if IntSetHashtbl.mem transient_states is then ok' := false;
                 let node' = {s = s'; o = o'; f = f'; ok = !ok'} in
                 (*Format.eprintf "    :: %a@." print_node node';*)
                 Queue.add node' waiting;
@@ -609,7 +720,7 @@ struct
     (* Here the automaton can be simplified as well *)
 
     (* Clash equivalent nodes *)
-    (*Format.eprintf "delta.size = %d\n" (Hashtbl.length delta);*)
+    (*Format.eprintf "delta.size = %d\n" (Hashtbl.length delta);
     begin
       try Hashtbl.iter (fun node succ ->
           let enode = equiv_node node in
@@ -633,7 +744,7 @@ struct
             failwith "Nbw.from_ahw::node_clashing.";
           end;
       end;
-      (*Format.eprintf "delta.size = %d\n" (Hashtbl.length delta);*)
+      Format.eprintf "delta.size = %d\n" (Hashtbl.length delta);*)
 
 
     (* Clean the table of nodes - START *)
@@ -659,15 +770,191 @@ struct
     ) delta;
     (* Clean the table of nodes - END *)
 
+    let _istates = Hashtbl.create (Hashtbl.length initial_states) in
+    let _delta = Hashtbl.create (Hashtbl.length delta) in
+    let _accept = Hashtbl.create 8 in
+    let _reject = Hashtbl.create 8 in
+
+    Hashtbl.iter (fun x succ ->
+        let xid = Hashtbl.find nodes_map x in
+        let succ' = Hashtbl.create (Hashtbl.length succ) in
+        Hashtbl.iter (fun y l ->
+            Hashtbl.add succ' (Hashtbl.find nodes_map y) l;
+          ) succ;
+        if x.ok then Hashtbl.add _accept xid ()
+        else Hashtbl.add _reject xid ();
+        if Hashtbl.mem initial_states x then Hashtbl.add _istates xid ();
+        Hashtbl.add _delta xid succ';
+      ) delta;
+
+    (*Hashtbl.iter (fun i succ ->
+        Printf.eprintf "%d[%s%s]: \n" i
+          (if Hashtbl.mem _istates i then "i" else " ")
+          (if Hashtbl.mem _accept i then "a" else " ");
+        Hashtbl.iter (fun j l ->
+            Printf.eprintf "    %d <- %s\n" j (Label.to_string l);
+          ) succ;
+      ) _delta;*)
+
+    let _delta_size = Hashtbl.length _delta in
+    let _delta_map = Hashtbl.create _delta_size in
+    let _node_rel_acc = Hashtbl.create _delta_size in
+    let _node_rel_map_acc = Hashtbl.create _delta_size in
+    let _node_rel_rej = Hashtbl.create _delta_size in
+    let _node_rel_map_rej = Hashtbl.create _delta_size in
+    let _node_rel_map_acc_rej = Hashtbl.create _delta_size in
+
+    let is_accepting i = Hashtbl.mem _accept i in
+
+    let _eq_deltas dx dy =
+      if Hashtbl.length dx = Hashtbl.length dy then begin
+        try Hashtbl.iter (fun ix lx ->
+            let ly = Hashtbl.find dy ix in
+            if Label.compare_bool lx ly != 0 then raise Not_found
+          ) dx; true
+        with Not_found -> false
+      end
+      else false
+    in
+
+    (* Compute equivalent rejecting states *)
+    Hashtbl.iter (fun i _ ->
+        let succ = Hashtbl.find _delta i in
+        let hash = Hashtbl.hash succ in
+        (*Printf.eprintf "node[%d][%d]\n" i hash;*)
+        if Hashtbl.mem _node_rel_rej hash then begin
+          let candidates = Hashtbl.find _node_rel_rej hash in
+          try Hashtbl.iter (fun succ' j ->
+              if _eq_deltas succ succ' then
+                raise (Node_found j)
+            ) candidates;
+            Hashtbl.add candidates succ i;
+            Hashtbl.add _node_rel_map_rej i i; (* This may be unnecessary *)
+          with Node_found j ->
+            Hashtbl.add _node_rel_map_rej i j
+        end
+        else begin
+          let t = Hashtbl.create 1 in
+          Hashtbl.add t succ i;
+          Hashtbl.add _node_rel_rej hash t;
+          Hashtbl.add _node_rel_map_rej i i;
+        end
+      ) _reject;
+
+    (*Hashtbl.iter (fun i j ->
+        Printf.eprintf "equivalent_rej(%d,%d)\n" i j
+      ) _node_rel_map_rej;*)
+
+    (* Compute equivalent accepting states *)
+    Hashtbl.iter (fun i _ ->
+        let succ = Hashtbl.find _delta i in
+        let hash = Hashtbl.hash succ in
+        (*Printf.eprintf "node[%d][%d]\n" i hash;*)
+        if Hashtbl.mem _node_rel_rej hash then begin
+          let candidates = Hashtbl.find _node_rel_rej hash in
+          try Hashtbl.iter (fun succ' j ->
+              if _eq_deltas succ succ' then
+                raise (Node_found j)
+            ) candidates;
+            Hashtbl.add _node_rel_map_acc i i;
+          with Node_found j ->
+            Hashtbl.add _node_rel_map_acc_rej i j
+        end;
+        if Hashtbl.mem _node_rel_map_acc hash then begin
+          let candidates = Hashtbl.find _node_rel_acc hash in
+          try Hashtbl.iter (fun succ' j ->
+              if _eq_deltas succ succ' then
+                raise (Node_found j)
+            ) candidates;
+            Hashtbl.add candidates succ i;
+            Hashtbl.add _node_rel_map_acc i i; (* This may be unnecessary *)
+          with Node_found j ->
+            Hashtbl.add _node_rel_map_acc i j
+        end
+        else begin
+          let t = Hashtbl.create 1 in
+          Hashtbl.add t succ i;
+          Hashtbl.add _node_rel_acc hash t;
+          Hashtbl.add _node_rel_map_acc i i;
+        end
+      ) _accept;
+
+    (*Hashtbl.iter (fun i j ->
+        Printf.eprintf "equivalent_acc(%d,%d)\n" i j
+      ) _node_rel_map_acc;
+
+    Hashtbl.iter (fun i j ->
+        Printf.eprintf "equivalent_acc_rej(%d,%d)\n" i j
+      ) _node_rel_map_acc_rej;*)
+
+
+    let _replace_succ i succ = (* We assume that i has no equivalent node that can replace it. *)
+      (*let succ = Hashtbl.find _delta i in*)
+      let succ' = Hashtbl.create (Hashtbl.length succ) in
+      Hashtbl.iter (fun k l ->
+          let j =
+            if is_accepting k then
+              if k = i then i
+              else if Hashtbl.mem _node_rel_map_acc_rej k then
+                let j' = Hashtbl.find _node_rel_map_acc_rej k in
+                if j' = i then k else j'
+              else
+                Hashtbl.find _node_rel_map_acc k
+            else
+              Hashtbl.find _node_rel_map_rej k
+          in
+          if Hashtbl.mem succ' j then
+            let l' = Hashtbl.find succ' j in
+            Hashtbl.replace succ' j (Label.dor l l')
+          else
+            Hashtbl.replace succ' j l
+            (*end*)
+        ) succ;
+      Hashtbl.replace _delta i succ'
+    in
+
+    Hashtbl.iter (fun i succ ->
+        if is_accepting i then
+          if i != Hashtbl.find _node_rel_map_acc i then
+            Hashtbl.remove _delta i
+          else
+            _replace_succ i succ
+        else if i != Hashtbl.find _node_rel_map_rej i then
+          Hashtbl.remove _delta i
+        else
+          _replace_succ i succ
+      ) _delta;
+
+    (*
+    let _initial = new_node () in
+    Hashtbl.add nodes_map _initial [|s=[||], o=[||], f=[||], ok=false|];
+
+    let _visited = Hashtbl.create (Hashtbl.size _delta) in
+    let _waiting = Queue.create () in
+
+    (* Let's have only one initial state *)
+    if Hashtbl.lenght _delta != 1 then begin
+
+    end;
+    *)
+    let delta = Hashtbl.create (Hashtbl.length _delta) in
+    Hashtbl.iter (fun i succ ->
+        let succ' = Hashtbl.create (Hashtbl.length succ) in
+        Hashtbl.iter (fun j l ->
+            Hashtbl.add succ' (Hashtbl.find nodes_map_reverse j) l;
+          ) succ;
+        Hashtbl.add delta (Hashtbl.find nodes_map_reverse i) succ';
+      ) _delta;
+
     Format.eprintf "NBW creation time: %f@." t_total;
     Format.eprintf "States: %d@." (Hashtbl.length delta);
 
 
     (*IntSetHashtbl.iter (fun y _ ->
-      Format.eprintf "%a:@." printset y;
-      IS.iter (fun i ->
-        Format.eprintf "%d -> %a@." i printset (Ahw.pred mgr.nbw_ahwmgr i)
-      ) y
+        Format.eprintf "%a:@." printset y;
+        IS.iter (fun i ->
+            Format.eprintf "%d -> %a@." i printset (Ahw.pred mgr.nbw_ahwmgr i)
+          ) y
       ) nbw_delta;*)
     let aut =
       {

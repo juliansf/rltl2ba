@@ -12,7 +12,7 @@ module type S = sig
   type trans = Nfa.Label.t
   type label = Nfa.Label.t
   type stratum = int
-  type strat_kind = SAccept | SReject | SBuchi | SCoBuchi
+  type strat_kind = SAccept | SReject | SBuchi | SCoBuchi | STransient
   type goodness = Good | Bad | Neutral
 
   type manager =

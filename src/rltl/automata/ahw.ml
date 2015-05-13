@@ -12,7 +12,7 @@ module type S = sig
   type trans = Nfa.Label.t
   type label = Nfa.Label.t
   type stratum = int
-  type strat_kind = SAccept | SReject | SBuchi | SCoBuchi
+  type strat_kind = SAccept | SReject | SBuchi | SCoBuchi | STransient
   type goodness = Good | Bad | Neutral
 
   type manager =
@@ -99,7 +99,7 @@ struct
   type trans = Nfa.Label.t
   type label = Nfa.Label.t
   type stratum = int
-  type strat_kind = SAccept | SReject | SBuchi | SCoBuchi
+  type strat_kind = SAccept | SReject | SBuchi | SCoBuchi | STransient
   type goodness = Good | Bad | Neutral
 
   type manager =
@@ -142,12 +142,12 @@ struct
     Hashtbl.add init _false Label.dfalse;
     Hashtbl.add _size _false 1;
     Hashtbl.add stratum _false 0;
-    Hashtbl.add strata 0 SReject;
+    Hashtbl.add strata 0 STransient;
     Hashtbl.add delta _true Label.dtrue;
     Hashtbl.add init _true Label.dtrue;
     Hashtbl.add _size _true 1;
     Hashtbl.add stratum _true 1;
-    Hashtbl.add strata 1 SAccept;
+    Hashtbl.add strata 1 STransient;
 
     {
       ahw_bddmgr = bddmgr;
@@ -206,6 +206,7 @@ struct
     | SReject -> Bad
     | SBuchi -> if is_final mgr q then Good else Bad
     | SCoBuchi -> if is_final mgr q then Bad else Neutral
+    | STransient -> Good
 
   let size mgr r =
     if r = mgr.ahw_false || r = mgr.ahw_true then 0
@@ -328,7 +329,7 @@ struct
       (* Set regular *)
       set_delta mgr q b;
       set_stratum mgr q h;
-      set_stratum_kind mgr h SReject;
+      set_stratum_kind mgr h STransient;
       set_init mgr r (Label.dstate q);
       r
     end
@@ -413,8 +414,8 @@ struct
   let conj = conj'
 
   (** Builds an AHW representing an existential NFA for fusion. *)
-  let ahw_of_nfa_exist mgr nfa next =
-    let {Nfa.nfa_delta; nfa_start; nfa_final} = nfa in
+  let ahw_of_nfa_exist mgr nfa stype next : state =
+    let {Nfa.nfa_delta; nfa_start; nfa_final; nfa_scc} = nfa in
     let n = Nfa.size nfa in
     let state_map = Array.init n (fun i ->
       if nfa_delta.(i) != [] then new_state mgr else mgr.ahw_true) in
@@ -427,9 +428,32 @@ struct
       else Label.dstate (state i)
     in
 
-    (* Create the rejecting stratum *)
-    let h = new_stratum mgr in
-    set_stratum_kind mgr h SReject;
+    (* Create the new strata *)
+    begin
+      match stype with
+      | `SingleStratum -> begin
+          (* Create the rejecting stratum *)
+          let h = new_stratum mgr in
+          set_stratum_kind mgr h SReject;
+          Array.iteri (fun i _ -> set_stratum mgr (state i) h) nfa_delta;
+        end
+      | `MultiStrata -> begin
+          Array.iter ( fun states ->
+              let h = new_stratum mgr in
+              if Array.length states = 1 &&
+                 not (List.exists (fun (_,s) ->
+                     s=states.(0)) nfa_delta.(states.(0)))
+              then
+                set_stratum_kind mgr h STransient
+              else
+                set_stratum_kind mgr h SReject;
+
+              Array.iter (fun i ->
+                  set_stratum mgr (state i) h
+                ) states;
+            ) nfa_scc;
+        end;
+    end;
 
     let next = next (state nfa_start) in
 
@@ -448,14 +472,13 @@ struct
           ) nfa_delta.(i) Label.dfalse
         in
         set_delta mgr (state i) (Label.simplify next_cond);
-        set_stratum mgr (state i) h
       end
     done;
     state nfa_start
 
   (** Builds an AHW representing an universal NFA for fusion. *)
-  let ahw_of_nfa_univ mgr nfa next =
-    let {Nfa.nfa_delta; nfa_start; nfa_final} = nfa in
+  let ahw_of_nfa_univ mgr nfa stype next : state =
+    let {Nfa.nfa_delta; nfa_start; nfa_final; nfa_scc;} = nfa in
     let n = Nfa.size nfa in
     let state_map = Array.init n (fun i ->
       if nfa_delta.(i) != [] then new_state mgr else mgr.ahw_false) in
@@ -468,9 +491,32 @@ struct
       else Label.dstate (state i)
     in
 
-    (* Create the accepting stratum *)
-    let h = new_stratum mgr in
-    set_stratum_kind mgr h SAccept;
+    (* Create the new strata *)
+    begin
+      match stype with
+      | `SingleStratum -> begin
+          (* Create the accepting stratum *)
+          let h = new_stratum mgr in
+          set_stratum_kind mgr h SAccept;
+          Array.iteri (fun i _ -> set_stratum mgr (state i) h) nfa_delta;
+        end
+      | `MultiStrata -> begin
+          Array.iter ( fun states ->
+              let h = new_stratum mgr in
+              if Array.length states = 1 &&
+                 not (List.exists (fun (_,s) ->
+                     s=states.(0)) nfa_delta.(states.(0)))
+              then
+                set_stratum_kind mgr h STransient
+              else
+                set_stratum_kind mgr h SAccept;
+
+              Array.iter (fun i ->
+                  set_stratum mgr (state i) h
+                ) states;
+            ) nfa_scc;
+        end;
+    end;
 
     let next = next (state nfa_start) in
 
@@ -489,7 +535,6 @@ struct
           ) nfa_delta.(i) Label.dtrue
         in
         set_delta mgr (state i) (Label.simplify next_cond);
-        set_stratum mgr (state i) h
       end
     done;
     state nfa_start
@@ -505,7 +550,7 @@ struct
         if Label.is_true x' then Label.dtrue
         else x'
       in
-      let q = ahw_of_nfa_exist mgr nfa (fun _ -> succ) in
+      let q = ahw_of_nfa_exist mgr nfa `MultiStrata (fun _ -> succ) in
 
       if nfa.Nfa.nfa_final.(nfa.Nfa.nfa_start) then
         set_delta mgr q (Label.dor succ (get_delta mgr q));
@@ -527,7 +572,7 @@ struct
         if Label.is_false x' then Label.dfalse
         else x'
       in
-      let q = ahw_of_nfa_univ mgr nfa (fun _ -> succ) in
+      let q = ahw_of_nfa_univ mgr nfa `MultiStrata (fun _ -> succ) in
 
       if nfa.Nfa.nfa_final.(nfa.Nfa.nfa_start) then
         set_delta mgr q (Label.dand succ (get_delta mgr q));
@@ -549,7 +594,7 @@ struct
         if Label.is_true dx then Label.dtrue
         else dx
       in
-      let q = ahw_of_nfa_exist mgr nfa (fun _ -> succ) in
+      let q = ahw_of_nfa_exist mgr nfa `MultiStrata (fun _ -> succ) in
 
       simplify mgr q;
       q
@@ -558,7 +603,8 @@ struct
   (** Builds the universal sequence of an NFA and an AHW with overlap *)
   let univ_fusion mgr nfa x =
     try
-    let dx = try get_delta mgr x with Not_found -> failwith "Ahw.univ_fusion.get_delta" in
+      let dx = try get_delta mgr x
+        with Not_found -> failwith "Ahw.univ_fusion.get_delta" in
 
     if nfa = Nfa.nfa_false || Label.is_true dx then
       top mgr
@@ -567,7 +613,7 @@ struct
         if Label.is_false dx then Label.dfalse
         else dx
       in
-      let q = ahw_of_nfa_univ mgr nfa (fun _ -> succ) in
+      let q = ahw_of_nfa_univ mgr nfa `MultiStrata (fun _ -> succ) in
 
       simplify mgr q;
       q
@@ -585,7 +631,8 @@ struct
       let q = new_state mgr in
 
       (* Build the transition *)
-      let r' = ahw_of_nfa_exist mgr r (fun _ -> Label.dstate q) in
+      let r' =
+        ahw_of_nfa_exist mgr r `SingleStratum (fun _ -> Label.dstate q) in
 
       (* x and y deltas *)
       let dx = Label.map_states (get_delta mgr) x' in
@@ -618,7 +665,8 @@ struct
       let q = new_state mgr in
 
       (* Build the transition *)
-      let r' = ahw_of_nfa_univ mgr r (fun _ -> Label.dstate q) in
+      let r' =
+        ahw_of_nfa_univ mgr r `SingleStratum (fun _ -> Label.dstate q) in
 
       (* x and y deltas *)
       let dx = Label.map_states (get_delta mgr) x' in

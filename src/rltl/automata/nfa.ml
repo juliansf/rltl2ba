@@ -12,6 +12,7 @@ module type S = sig
     { nfa_delta: trans array;
       nfa_start: int;
       nfa_final: bool array;
+      nfa_scc: (int array) array;
     }
 
   val size : t -> int
@@ -23,13 +24,13 @@ module type S = sig
   val fusion : t -> t -> t
   val plus : t -> t -> t
   val product : t -> t -> t
+
+  val tarjanSCC : trans array -> (int array) array
 end
 
 module Make(B : Bool.S) =
 struct
   let trigger = ref false
-
-
 
   type error =
   | Invalid_Nfa
@@ -44,21 +45,80 @@ struct
     { nfa_delta: trans array;
       nfa_start: int;
       nfa_final: bool array;
+      nfa_scc: (int array) array;
     }
 
-  let _false = { nfa_delta = [||]; nfa_start = -1; nfa_final = [||]; }
+  let _false =
+    {nfa_delta = [||]; nfa_start = -1; nfa_final = [||]; nfa_scc = [||];}
   let nfa_false = _false
 
-(** Number of states of an NFA *)
+
+  (** Tarjan's SCC algorithm *)
+  let tarjanSCC delta =
+    let idx = ref (-1) in
+    let new_idx () = incr idx; !idx in
+
+    let n = Array.length delta in
+    let s = Stack.create () in
+    let on_stack = Array.make n false in
+    let index = Array.make n (-1) in
+    let lowlink = Array.make n (-1) in
+    let scc = Stack.create () in
+
+
+    let rec strongconnect i =
+      index.(i) <- new_idx ();
+      lowlink.(i) <- index.(i);
+      Stack.push i s;
+      on_stack.(i) <- true;
+
+      List.iter (fun (l, j) ->
+          if index.(j) = -1 then begin
+            (* Successor j has not yet been visited; recurse on it. *)
+            strongconnect j;
+            lowlink.(i) <- min lowlink.(i) lowlink.(j)
+          end
+          else if on_stack.(j) then
+            (* Successor j is in stack s and hence in the current SCC *)
+            lowlink.(i) <- min lowlink.(i) index.(j)
+        ) delta.(i);
+
+      (* If i is a root node, pop the stack and generate the an SCC *)
+      if lowlink.(i) = index.(i) then begin
+        let q = Queue.create () in
+
+        let j = ref (Stack.pop s) in
+        Queue.add (!j) q;
+        on_stack.(!j) <- false;
+
+        while (!j) != i do
+          j := Stack.pop s;
+          Queue.add (!j) q;
+          on_stack.(!j) <- false;
+        done;
+
+        let scc_states = Array.init (Queue.length q) (fun _ -> Queue.take q) in
+        Stack.push scc_states scc;
+      end
+    in
+
+    for i=0 to n-1 do
+      if index.(i) = -1 then
+        strongconnect i
+    done;
+    Array.init (Stack.length scc) (fun _ -> Stack.pop scc)
+
+
+  (** Number of states of an NFA *)
   let size nfa = Array.length nfa.nfa_delta
 
 
-(** Shifts the state numbering of a transition by a constant *)
+  (** Shifts the state numbering of a transition by a constant *)
   let shift_k k (delta : trans array) =
     Array.map (List.map (fun (g,i) -> (g,i+k))) delta
 
 
-(** Reverse the transition relation *)
+  (** Reverse the transition relation *)
   let reverse_delta delta =
     let n = Array.length delta in
     let rev = Array.make n [] in
@@ -68,7 +128,7 @@ struct
     rev
 
 
-(** Mark which states are reachable *)
+  (** Mark which states are reachable *)
   let mark_reachable (start: int list) delta =
     let reachable = Array.make (Array.length delta) false in
     let waiting = Queue.create () in
@@ -133,7 +193,7 @@ struct
           List.fold_left (fun succ (b,q) ->
             if mapping.(q) < 0 then succ else (b,mapping.(q))::succ
           ) [] nfa.nfa_delta.(i);
-        final.(i') <- nfa.nfa_final.(i)
+        final.(i') <- nfa.nfa_final.(i);
       end
     in
     Array.iteri map_st mapping;
@@ -143,6 +203,7 @@ struct
       nfa_delta = delta;
       nfa_start = mapping.(nfa.nfa_start);
       nfa_final = final;
+      nfa_scc = [||];
     }
 
 
@@ -209,6 +270,7 @@ struct
         nfa_delta = delta;
         nfa_start = start;
         nfa_final = final;
+        nfa_scc = [||];
       }
     in
 
@@ -225,7 +287,8 @@ struct
   let is_well_formed nfa =
     let delta_size = Array.length nfa.nfa_delta in
     let final_size = Array.length nfa.nfa_final in
-    delta_size = final_size &&
+    let scc_size = Array.length nfa.nfa_scc in
+    delta_size = final_size && scc_size <= final_size &&
         nfa.nfa_start >= 0 && nfa.nfa_start < delta_size
 
 
@@ -233,14 +296,19 @@ struct
   let simplify nfa =
     incr count;
     (*Printf.fprintf stderr "Simplifying(%d)... %!" !count;*)
-    let x =
+    let {nfa_delta; nfa_start; nfa_final; nfa_scc } =
       if nfa = _false then _false
       else if is_well_formed nfa
       then remove_unreachable (merge_states nfa)
       else raise (Error Invalid_Nfa)
     in
     (*Printf.fprintf stderr "done\n%!";*)
-    x
+    {
+      nfa_delta = nfa_delta;
+      nfa_start = nfa_start;
+      nfa_final = nfa_final;
+      nfa_scc = tarjanSCC nfa_delta;
+    }
 
 
   (** Builds the NFA of a letter (Label.t) *)
@@ -251,6 +319,7 @@ struct
         nfa_delta = [|[(b,1)];[]|];
         nfa_start = 0;
         nfa_final = [|false; true|];
+        nfa_scc = [|[|0|]; [|1|]|];
       }
 
   (** Builds the Kleen star NFA of an NFA *)
@@ -261,6 +330,7 @@ struct
 
       let delta' = Array.make (n+1) [] in
       let final' = Array.append final [|true|] in
+      let scc' = Array.make (n+1) false in
 
     (* Save the successor list of the inital state *)
       let start_succ = delta.(start) in
@@ -274,27 +344,27 @@ struct
       ) delta;
 
       delta'.(n) <- start_succ;
-      simplify { nfa_delta=delta'; nfa_start=n; nfa_final=final'; }
+      simplify { nfa_delta=delta'; nfa_start=n; nfa_final=final'; nfa_scc=[||]}
     end
 
 
   (** Concatenates two NFAs *)
   let concat nfa1 nfa2 =
     if nfa1=_false || nfa2=_false then _false else begin
-      let {nfa_delta=delta1; nfa_start=start1; nfa_final=final1} = nfa1 in
-      let {nfa_delta=delta2; nfa_start=start2; nfa_final=final2} = nfa2 in
+      let {nfa_delta=delta1; nfa_start=start1; nfa_final=final1;} = nfa1 in
+      let {nfa_delta=delta2; nfa_start=start2; nfa_final=final2;} = nfa2 in
 
       let n1,n2 = size nfa1, size nfa2 in
       let delta = Array.make (n1+n2) [] in
 
-    (* Shift transition of [nfa2] by [n1] *)
+      (* Shift transition of [nfa2] by [n1] *)
       let delta2 = shift_k n1 delta2 in
 
-    (* Add out edges of the start node of [nfa2] to finals
-       states of [nfa1] *)
+      (* Add out edges of the start node of [nfa2] to finals
+         states of [nfa1] *)
       Array.iteri (fun i succ ->
-        delta.(i) <- succ @ if final1.(i) then delta2.(start2) else []
-      ) delta1;
+          delta.(i) <- succ @ if final1.(i) then delta2.(start2) else []
+        ) delta1;
 
       Array.iteri (fun i succ -> delta.(n1+i) <- succ) delta2;
 
@@ -303,25 +373,26 @@ struct
           if final2.(start2) then final1 else Array.make n1 false in
         Array.append final1 final2
       in
-      simplify { nfa_delta=delta; nfa_start=start1; nfa_final=final; }
+      simplify { nfa_delta=delta; nfa_start=start1;
+                 nfa_final=final; nfa_scc=[||]; }
     end
 
 
 (** Concatenates two NFAs with an overlapping letter *)
   let fusion nfa1 nfa2 =
     if nfa1=_false || nfa2=_false then _false else begin
-      let {nfa_delta=delta1; nfa_start=start1; nfa_final=final1} = nfa1 in
-      let {nfa_delta=delta2; nfa_start=start2; nfa_final=final2} = nfa2 in
+      let {nfa_delta=delta1; nfa_start=start1; nfa_final=final1;} = nfa1 in
+      let {nfa_delta=delta2; nfa_start=start2; nfa_final=final2;} = nfa2 in
 
       let n1 = size nfa1 in
 
-    (* Shift transition of [nfa2] by [n1] *)
+      (* Shift transition of [nfa2] by [n1] *)
       let delta2 = shift_k n1 delta2 in
 
       let delta = Array.append delta1 delta2 in
 
-    (* Combine edges to final states of [nfa1] with edges of the start
-       node of [nfa2] *)
+      (* Combine edges to final states of [nfa1] with edges of the start
+         node of [nfa2] *)
       Array.iteri (fun i succ ->
         List.iter (fun (b,i') ->
           if final1.(i') then
@@ -331,17 +402,18 @@ struct
       ) delta1;
 
       let final = Array.append (Array.make n1 false) final2 in
-
-      simplify { nfa_delta=delta; nfa_start=start1; nfa_final=final; }
+      simplify { nfa_delta=delta; nfa_start=start1;
+                 nfa_final=final; nfa_scc=[||]; }
     end
 
 
 (** Builds the union of two NFAs *)
   let plus nfa1 nfa2 =
+    try
     if nfa1=_false then nfa2
     else if nfa2=_false then nfa1 else begin
-      let {nfa_delta=delta1; nfa_start=start1; nfa_final=final1} = nfa1 in
-      let {nfa_delta=delta2; nfa_start=start2; nfa_final=final2} = nfa2 in
+      let {nfa_delta=delta1; nfa_start=start1; nfa_final=final1;} = nfa1 in
+      let {nfa_delta=delta2; nfa_start=start2; nfa_final=final2;} = nfa2 in
 
       let n1,n2 = size nfa1, size nfa2 in
       let delta2 = shift_k n1 delta2 in
@@ -351,27 +423,31 @@ struct
       let final =
         Array.append final1 (
           Array.append final2 [| final1.(start1) || final2.(start2) |]) in
-
+      try
       simplify
         {
           nfa_delta=delta;
           nfa_start=n1+n2;
           nfa_final=final;
+          nfa_scc=[||];
         }
+      with _ -> failwith "simplify"
     end
+    with _ -> failwith "plus"
 
 
 (** Builds the product of two NFAs *)
   let product nfa1 nfa2 =
     if nfa1=_false || nfa2=_false then _false else begin
-      let {nfa_delta=delta1; nfa_start=start1; nfa_final=final1} = nfa1 in
-      let {nfa_delta=delta2; nfa_start=start2; nfa_final=final2} = nfa2 in
+      let {nfa_delta=delta1; nfa_start=start1; nfa_final=final1;} = nfa1 in
+      let {nfa_delta=delta2; nfa_start=start2; nfa_final=final2;} = nfa2 in
 
       let n1,n2 = size nfa1, size nfa2 in
 
       let delta = Array.make (n1*n2) [] in
       let start = start1*n2+start2 in
       let final = Array.make (n1*n2) false in
+      let scc = Array.make (n1*n2) false in
 
       for i=0 to n1-1 do
         for j=0 to n2-1 do
@@ -387,6 +463,7 @@ struct
         nfa_delta=delta;
         nfa_start=start;
         nfa_final=final;
+        nfa_scc=[||];
       }
     end
 end
