@@ -787,6 +787,30 @@ struct
         Hashtbl.add _delta xid succ';
       ) delta;
 
+    let _initial = new_node () in
+    let ok = Hashtbl.fold (fun x _ b -> x.ok && b) initial_states true in
+    if ok then Hashtbl.add _accept _initial () else Hashtbl.add _reject _initial ();
+    Hashtbl.add nodes_map_reverse _initial {s=[||]; o=[||]; f=[||]; ok=ok;};
+    Hashtbl.add nodes_map {s=[||]; o=[||]; f=[||]; ok=ok;} _initial;
+
+    let _isucc = Hashtbl.create 8 in
+    (try
+    Hashtbl.iter (fun j _ ->
+        let jsucc = Hashtbl.find _delta j in
+        Hashtbl.iter (fun k l ->
+            if Hashtbl.mem _isucc k then
+              let l' = Hashtbl.find _isucc k in
+              Hashtbl.replace _isucc k (Label.dor l l')
+            else
+              Hashtbl.add _isucc k l
+          ) jsucc;
+      ) _istates;
+    Hashtbl.add _delta _initial _isucc;
+     with _ -> failwith "nbw");
+
+    Hashtbl.reset _istates;
+    Hashtbl.add _istates _initial ();
+
     (*Hashtbl.iter (fun i succ ->
         Printf.eprintf "%d[%s%s]: \n" i
           (if Hashtbl.mem _istates i then "i" else " ")
@@ -945,6 +969,14 @@ struct
           ) succ;
         Hashtbl.add delta (Hashtbl.find nodes_map_reverse i) succ';
       ) _delta;
+
+    let _initial =
+      Hashtbl.find
+        (if is_accepting _initial then _node_rel_map_acc else _node_rel_map_rej)
+        _initial
+    in
+    let initial_states = Hashtbl.create 1 in
+    Hashtbl.add initial_states (Hashtbl.find nodes_map_reverse _initial) ();
 
     Format.eprintf "NBW creation time: %f@." t_total;
     Format.eprintf "States: %d@." (Hashtbl.length delta);
