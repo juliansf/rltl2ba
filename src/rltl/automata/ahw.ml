@@ -77,6 +77,7 @@ module type S = sig
   val get_stratum_size: manager -> t -> stratum -> int
   val pred: manager -> state -> Misc.IntSet.t
   val goodness: manager -> state -> goodness
+  val is_very_weak: manager -> state -> bool
 end
 
 
@@ -200,14 +201,6 @@ struct
     with
       Not_found -> IntSet.empty (*raise (Error Invalid_Ahw)*)
 
-  let goodness mgr q =
-    match get_stratum_kind mgr (get_stratum mgr q) with
-    | SAccept -> Good
-    | SReject -> Bad
-    | SBuchi -> if is_final mgr q then Good else Bad
-    | SCoBuchi -> if is_final mgr q then Bad else Neutral
-    | STransient -> Good
-
   let size mgr r =
     if r = mgr.ahw_false || r = mgr.ahw_true then 0
     else begin
@@ -246,6 +239,34 @@ struct
       (if not (Hashtbl.mem mgr.ahw_strata_size q) then ignore (size mgr q));
       Hashtbl.find (Hashtbl.find mgr.ahw_strata_size q) h
     end
+
+  let is_very_weak mgr r =
+    let strata = Hashtbl.create (size mgr r) in
+    let visited = Hashtbl.create 8 in
+
+    let rec count x =
+      if Hashtbl.mem visited x then ()
+      else begin
+        Hashtbl.add visited x ();
+        let stratum = get_stratum mgr x in
+        if Hashtbl.mem strata stratum then raise Exit;
+        Hashtbl.add strata stratum ();
+        List.iter count (Label.states(get_delta mgr x))
+      end
+    in
+    try
+      List.iter count (Label.states (get_init mgr r));
+      true
+    with Exit -> false;;
+
+  let goodness mgr q =
+    match get_stratum_kind mgr (get_stratum mgr q) with
+    | SAccept -> Good
+    | SReject -> Bad
+    | SBuchi -> if is_final mgr q then Good else Bad
+    | SCoBuchi -> if is_final mgr q then Bad else Neutral
+    | STransient -> Good
+
 
   let remove_state mgr q = begin
     Hashtbl.remove mgr.ahw_delta q;
@@ -384,7 +405,6 @@ struct
     else if Label.is_true dy then
       x
     else begin
-      (*Printf.fprintf stderr "(regular... %!";*)
       (* Create the new state for regular *)
       let q = new_state mgr in
       let h = new_stratum mgr in
@@ -400,6 +420,10 @@ struct
   let conj' mgr x y =
     let x' = get_init mgr x in
     let y' = get_init mgr y in
+    let z = Label.dand x' y' in
+    (*Printf.eprintf "&&&&&&CONJ'\nx=%s\ny=%s\n"
+      (Label.to_string x') (Label.to_string y');
+      Printf.eprintf "z=%s\n\n" (Label.to_string z);*)
     if Label.is_false x' || Label.is_false y' then
       bottom mgr
     else if Label.is_true x' then
@@ -676,6 +700,11 @@ struct
       let delta_q =
         Label.dand dy (Label.dor dx (get_delta mgr r')) in
       set_delta mgr q delta_q;
+
+      (*Printf.eprintf "^^^^^^ DUAL POWER'\nx=%s\ny=%s\nr=%s\n"
+        (Label.to_string dx) (Label.to_string dy)
+        (Label.to_string (get_delta mgr r'));
+        Printf.eprintf "z=%s\n\n" (Label.to_string delta_q);*)
 
       (* Add q to the new stratum *)
       set_stratum mgr q (get_stratum mgr r');

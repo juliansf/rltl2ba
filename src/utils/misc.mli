@@ -2,6 +2,7 @@
 (* Errors *)
 exception Fatal_error
 exception ValOf_None
+exception Not_implemented
 
 val fatal_error: string -> 'a
 

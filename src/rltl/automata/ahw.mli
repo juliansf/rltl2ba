@@ -77,6 +77,7 @@ module type S = sig
   val get_stratum_size: manager -> t -> stratum -> int
   val pred: manager -> state -> Misc.IntSet.t
   val goodness: manager -> state -> goodness
+  val is_very_weak: manager -> state -> bool
 end
 
 

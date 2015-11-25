@@ -70,7 +70,6 @@ Library rltl
                    Node,
                    Printexpr,
                    Exptree,
-                   Shared,
                    automata/Bdd,
                    automata/Bdd_plus,
                    automata/Bool,

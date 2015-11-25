@@ -59,7 +59,8 @@ let nbw2dot mgr fmt nbwref =
   reset ();
   let nbw = find mgr nbwref in
   Format.fprintf fmt ("@[<v 1>digraph {@;@;rank = min;"
-                      ^^"@;splines=true;@;fontsize = 10;@;@;");
+                      ^^"@;splines=true;@;fontsize = 10;"
+                      ^^"@;fontname = \"serif\";@;@;");
 
   let visited = Hashtbl.create (Hashtbl.length nbw.nbw_delta) in
   let waiting = Queue.create () in
