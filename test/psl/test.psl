@@ -1,0 +1,7 @@
+--false V ((true U a) & (b V c))
+--(true   U ((a) | (false V ((true U (b)) & ((c) V ((false V ! ((d))) V ! ((e))))))))
+--(true U ((a) | (false V ((((b)) & (((c) V (((false V ((d))) V  ((e))) | (c))) ))))))
+false V (c V (((false V d) V e) | c))
+
+-- false V ((true U a) && (b V c))
+-- (true U ((a) || (false V (((true U (b)) && (((c) V (((false V ! ((d))) V ! ((e))) || (c))) ))))))
