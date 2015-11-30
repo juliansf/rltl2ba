@@ -35,9 +35,13 @@ let poly_binop (l,r) res =
 let build_initial_env add_builtin empty_env =
   let builtin_functions = [
     (* Bool operators *)
-    "!", newty (Tarrow (type_bool, type_bool));
+    "!", newty(Tpoly (type_rltl, type_rltl, fun t ->
+      if Btype.subtype t type_bool then type_bool
+      else type_rltl));
+    (*newty (Tarrow (type_bool, type_bool));*)
     "&", mk_binop (type_bool, type_bool) type_bool;
     "|", mk_binop (type_bool, type_bool) type_bool;
+    "^", mk_binop (type_bool, type_bool) type_bool;
     "=", mk_binop (type_bool, type_bool) type_bool;
     "!=", mk_binop (type_bool, type_bool) type_bool;
     "->", mk_binop (type_bool, type_bool) type_bool;
@@ -56,6 +60,7 @@ let build_initial_env add_builtin empty_env =
     "not", newty(Tarrow (type_rltl, type_rltl));
     "and", mk_binop (type_rltl, type_rltl) type_rltl;
     "or", mk_binop (type_rltl, type_rltl) type_rltl;
+    "xor", mk_binop (type_rltl, type_rltl) type_rltl;
     "implies", mk_binop (type_rltl, type_rltl) type_rltl;
     "iff", mk_binop (type_rltl, type_rltl) type_rltl;
     ";;", mk_binop (type_rltl, type_rltl) type_rltl;

@@ -65,6 +65,7 @@
 %token FALSE
 %token <string> IDENT
 %token IFF
+%token HAT
 %token IMPLIES
 %token IN
 %token LB
@@ -87,6 +88,7 @@
 %token UNTIL
 %token WITH
 %token WUNTIL
+%token XOR
 
 /* Precedences from low to high */
 %nonassoc IN
@@ -95,7 +97,7 @@
 /*%nonassoc LET*/
 %right IMPLIES
 %left IFF
-%left OR
+%left OR XOR
 %left AND
 %nonassoc below_WITH
 %nonassoc WITH DELAY
@@ -109,7 +111,7 @@
 %right STAR
 %right MINUSGREATER
 %left LESSMINUSGREATER
-%left BAR
+%left BAR HAT
 %left AMPERSAND
 /*%nonassoc below_EQUAL*/
 %left EQUAL BANGEQUAL
@@ -253,6 +255,7 @@ ident_type_list:
 | COLON { ":" }
 | COLONCOLON { "::" }
 | EQUAL { "=" }
+| HAT { "^" }
 | IFF { "iff" }
 | IMPLIES { "implies" }
 | LESSMINUSGREATER { "<->" }
@@ -261,6 +264,7 @@ ident_type_list:
 | PLUS { "+" }
 | SEMI { ";" }
 | SEMISEMI { ";;" }
+| XOR { "^" }
 ;
 
 %inline power_oper:

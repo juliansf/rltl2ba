@@ -9,6 +9,7 @@ let stratum_kind mgr h =
   | SReject -> "R"
   | SBuchi -> "B"
   | SCoBuchi -> "C"
+  | STransient -> "T"
 
 let stratum_color mgr h =
   match get_stratum_kind mgr h with
@@ -16,6 +17,7 @@ let stratum_color mgr h =
   | SReject -> "#FF8383"
   | SBuchi -> "#99CCFF"
   | SCoBuchi -> "#DADADA"
+  | STransient -> "#D494D4"
 
 
 let state_names : (state,state) Hashtbl.t = Hashtbl.create 8
@@ -125,6 +127,8 @@ let ahw2dot mgr fmt ahw =
 
   let strata = Hashtbl.create 8 in
 
+  let init =  get_init mgr ahw in
+
   (* Header *)
   Format.fprintf fmt "@[<v 1>digraph {@;@;rank = same;@;fontsize = 10;@;\
     labelloc=t;@;labeljust=l;@; \
@@ -133,21 +137,26 @@ let ahw2dot mgr fmt ahw =
                         <td bgcolor='#FF8383'> R=Rejecting </td>@; \
                         <td bgcolor='#99CCFF'> B=B&uuml;chi </td>@; \
                         <td bgcolor='#DADADA'> C=CoB&uuml;chi </td>@]@; \
+                        <td bgcolor='#D494D4'> T=Transient </td>@]@; \
                     </tr>@; </table>@]>;@;@;";
 
-  (* Print the initial state *)
+  (* Print the initial condition *)
   let i = rename_state ahw in
   Format.fprintf fmt
-    "node_%d [shape=plaintext label=\"start\"]; \
-     node_%d -> %d;@\n" i i i;
+    "start [shape=plaintext label=\"start\"];@\n";
+
+  Format.fprintf fmt "%a" (print_class "start")
+      (Ahw.Nfa.Label.classify init);
 
   (* BFS traversal of the AHW *)
   let waiting : state Queue.t = Queue.create () in
   let visited : (state,unit) Hashtbl.t = Hashtbl.create 8 in
 
   (* Add the initial state *)
-  Queue.add ahw waiting;
-  Hashtbl.add visited ahw ();
+  let initials = Misc.uniques (Ahw.Nfa.Label.states (get_init mgr ahw)) in
+  List.iter (fun i ->
+      Printf.eprintf "s:%d\n" i;
+      Queue.add i waiting; Hashtbl.add visited i ()) initials;
   while not (Queue.is_empty waiting) do
     let q = Queue.take waiting in
     let i = rename_state q in
@@ -211,19 +220,24 @@ let ahw2dot mgr fmt ahw =
 let print_ahw mgr fmt ahw =
   reset();
 
-  Printf.eprintf "AHW(%d) size: " ahw;
-  Printf.eprintf "%d\n" (Ahw.size mgr ahw);
+  (* Is the automaton very weak? *)
+  Format.fprintf fmt "-- AHW is %svery weak.\n"
+    (if Ahw.is_very_weak mgr ahw then "" else "NOT ");
 
   (* Print the initial state *)
-  Format.fprintf fmt "start: %d@;" (rename_state ahw);
+  let init = get_init mgr ahw in
+  Format.fprintf fmt "-- size: %d\n" (Ahw.size mgr ahw);
+  Format.fprintf fmt "start: %s@\n" (Ahw.Nfa.Label.to_string (get_init mgr ahw));
 
   (* BFS traversal of the AHW *)
   let waiting : state Queue.t = Queue.create () in
   let visited : (state,unit) Hashtbl.t = Hashtbl.create 8 in
 
   (* Add the initial state *)
-  Queue.add ahw waiting;
-  Hashtbl.add visited ahw ();
+  let initials = Misc.uniques (Ahw.Nfa.Label.states (get_init mgr ahw)) in
+  List.iter (fun i ->
+    Printf.eprintf "s:%d\n" i;
+    Queue.add i waiting; Hashtbl.add visited i ()) initials;
   while not (Queue.is_empty waiting) do
     let q = Queue.take waiting in
     let delta =
@@ -234,8 +248,12 @@ let print_ahw mgr fmt ahw =
     let hk = stratum_kind mgr h in
     let hs = get_stratum_size mgr ahw h in
     let h_states = get_stratum_states mgr h in
-    Format.fprintf fmt "%4d [%d,%s,%d] : " (rename_state q) (rename_stratum h) hk hs;
-    Format.fprintf fmt "%s@\n" (Ahw.Nfa.Label.to_string delta);
+    Format.fprintf fmt "%4d [%d,%s,%d] : @\n"
+      (rename_state q) (rename_stratum h) hk hs;
+    List.iter (fun t ->
+      Format.fprintf fmt "    :: %s @\n" (Ahw.Nfa.Label.to_string t))
+      (Ahw.Nfa.Label.disj_list delta);
+    Format.fprintf fmt "\n";
     Ahw.Nfa.Label.iter_states (fun i ->
       if not (Hashtbl.mem visited i) then begin
         Hashtbl.add visited i ();

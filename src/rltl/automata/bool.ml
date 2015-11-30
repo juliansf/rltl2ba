@@ -50,8 +50,11 @@ module type S = sig
 
   val disj_list : t -> t list
   val conj_list : t -> t list
+  val merge_disj : t -> t -> t
+  val merge_conj : t -> t -> t list
 
   val to_string : t -> string
+  val print : Format.formatter -> t -> unit
 
   val is_true : t -> bool
   val is_false : t -> bool
@@ -62,6 +65,8 @@ module type S = sig
   val arrows_product :
     t IntSetHashtbl.t -> t IntSetHashtbl.t -> t IntSetHashtbl.t
   val arrows : t -> t IntSetHashtbl.t
+
+  val compare_bool : t -> t -> int
 end
 
 module Make(X : AtomType) : S with type elt = X.t =
@@ -81,20 +86,31 @@ struct
   | Or of t * t
 
   let rec to_string = function
-    | True -> "true"
     | False -> "false"
+    | True -> "true"
     | Atom s -> X.to_string s
     | State i -> string_of_int i
     | Not(And _ as x) | Not(Or _ as x) -> "!(" ^ to_string x ^ ")"
-    | Not x -> "~" ^ to_string x
+    | Not x -> "!" ^ to_string x
     | And ((Or _ as x), (Or _ as y)) ->
       "("^ to_string x ^") && ("^ to_string y ^")"
     | And (Or _ as x, y) -> "("^ to_string x ^") && "^ to_string y
     | And (x, (Or _ as y)) -> to_string x ^" && ("^ to_string y ^")"
-    | And (x,y) -> to_string x ^" && "^ to_string y
+    | And (x,y) -> to_string x ^ " && "^ to_string y
     | Or (x,y) ->  "("^to_string x ^") || ("^ to_string y^")"
 
+  let print fmt l = Format.fprintf fmt "%s" (to_string l)
 
+  let compare_bool x y =
+    match x,y with
+    | Atom a, Not (Atom b)
+    | Not (Atom a), Atom b -> compare a b
+    | State i, State j -> compare i j
+    | State _, _ -> 1
+    | _, State _ -> -1
+    | _ -> compare x y
+
+  let (<) x y = compare_bool x y = -1
 
   let disj_list f =
     let rec disj_lst xs = function
@@ -131,7 +147,6 @@ struct
     | True,z | z,True -> z
     | Not x, y when x=y -> False
     | y, Not x when x=y -> False
-    (*| Not x, Not y -> Not(Or(x,y))*)
     | _ -> if x < y then And(x,y) else And(y,x)
 
   let dor x y = match x,y with
@@ -143,7 +158,8 @@ struct
     | Not x, Not y -> Not(And(x,y))
     | _ -> if x < y then Or (x,y) else Or(y,x)
 
-  let rec dnot' x = match x with
+  let rec dnot' x =
+    let z = match x with
     | True -> False
     | False -> True
     | State i -> State i
@@ -151,30 +167,47 @@ struct
     | And(x,y) -> dor' (dnot' x) (dnot' y)
     | Or(x,y) -> dand' (dnot' x) (dnot' y)
     | x -> Not(x)
-  and dand' x y = match x,y with
+    in
+    (*Printf.eprintf "########dnot'\nx=%s\n" (to_string x);
+      Printf.eprintf "z=%s\n\n" (to_string z);*)
+    z
+
+  and dand' x y =
+    let z = match x,y with
     | False,_ | _,False -> False
     | True,z | z,True -> z
     | Or(s,t), y | y, Or(s,t) -> dor' (dand' s y) (dand' t y)
     | (And _ as x),y | y,(And _ as x) ->
-      let terms = (conj_list x) @ (conj_list y) in
+      let terms = List.fast_sort compare_bool ((conj_list x) @ (conj_list y)) in
       List.fold_right (fun x f ->
-        match f with | True -> x | _ -> And(x,f)) (uniques True terms) True
+        match f with
+        | True -> x
+        | False -> False
+        | _ -> match x with
+          | True -> f
+          | False -> False
+          | _ -> And(x,f)
+      ) (uniques False terms) True
     | x,y when x=y -> x
     | x,y -> dand x y
+    in
+    (*Printf.eprintf ":::::::::::dand'\nx=%s\ny=%s\n" (to_string x) (to_string y);
+      Printf.eprintf "z=%s\n\n" (to_string z);*)
+    z
 
-  and  dor' x y = match x,y with
+  and  dor' x y =
+    let z = match x,y with
     | True,_ | _,True -> True
     | False,z | z,False -> z
     | Atom p, Not(Atom q) | Not(Atom q), Atom p when p = q -> True
     | And(Atom p, Atom q), Atom r
     | Atom r, And(Atom p, Atom q) when p=r || q=r -> Atom r
-
-    | And(Atom p, Atom q), Not (Atom r)
-    | And(Atom q, Atom p), Not (Atom r)
-    | And(Not(Atom p), Atom q), Atom r
-    | And(Atom q, Not(Atom p)), Atom r when p=r -> Atom q
     | x,y when x=y -> x
     | _ -> merge_disj x y
+    in
+    (*Printf.eprintf "++++++++++++++++dor'\nx=%s\ny=%s\n" (to_string x) (to_string y);
+      Printf.eprintf "z=%s\n\n" (to_string z);*)
+    z
 
   and uniques unit xs =
     let seen = Hashtbl.create (List.length xs) in
@@ -190,34 +223,44 @@ struct
 
   and merge_conj x y =
     (* We assume [x] and [y] are simplified conjunctions. *)
+    Printf.eprintf "merge_conj :: x = %s;  y = %s\n" (to_string x) (to_string y);
     let xs,ys = conj_list x, conj_list y in
     let x,y,xs,ys = if List.length xs <= List.length ys
       then x,y,xs,ys else y,x,ys,xs in
     let t = Hashtbl.create (List.length ys) in
-    List.iter (fun v -> Hashtbl.add t v ()) ys;
+    List.iter (fun v -> if v != True then Hashtbl.add t v ()) ys;
     try List.iter (Hashtbl.find t) xs; [x]
-    with Not_found -> [x;y]
+    with Not_found -> if x < y then [x;y] else [y;x]
 
   and merge_disj x y =
     (* We assume [x] and [y] are both SOP *)
+    Printf.eprintf "merge_disj :: x = %s;  y = %s\n" (to_string x) (to_string y);
     let xs,ys = disj_list x, disj_list y in
+    List.iteri (fun i x -> Printf.eprintf "xs[%d] = %s\n" i (to_string x)) xs;
+    List.iteri (fun i y -> Printf.eprintf "ys[%d] = %s\n" i (to_string y)) ys;
     let xs,ys = List.fold_right (fun w (zs,us) ->
-      let (vs,seen) = propagate_disj w zs in
-      if seen then (vs,us)
-      else (vs, w::us)
-    ) xs (ys,[]) in
+        let (vs,seen) = propagate_disj w zs in
+        if seen then (vs,us)
+        else (vs, w::us)
+      ) xs (ys,[]) in
+    List.iteri (fun i x -> Printf.eprintf "xs[%d] = %s\n" i (to_string x)) xs;
+    List.iteri (fun i y -> Printf.eprintf "ys[%d] = %s\n" i (to_string y)) ys;
     let x' = disj_of_list xs in
     let y' = disj_of_list ys in
-    if x' = False then y' else if y' = False then x' else Or(x',y')
+    if x' = False then y' else if y' = False then x'
+    else if x' = True || y' = True then True
+    else if x' < y' then Or(x',y') else Or(y',x')
 
 
   and propagate_disj x xs =
+    Printf.eprintf "propagate_disj::x = %s\n" (to_string x);
+    List.iteri (fun i x -> Printf.eprintf "propagate_disj::xs[%d] = %s\n" i (to_string x)) xs;
     try (List.fold_right (fun y ys ->
-      let mrg = merge_conj x y in
-      if List.length mrg = 2 then y::ys
-      else if List.hd mrg = x then ys
-      else raise Exit
-    ) xs [],false)
+        let mrg = merge_conj x y in
+        if List.length mrg = 2 then y::ys
+        else if List.hd mrg = x then ys
+        else raise Exit
+      ) xs [],false)
     with Exit -> (xs,true)
 
   let dor = dor'
@@ -240,8 +283,8 @@ struct
 
   let rec classify f =
     let rec propagate b = function
-      | `Arrow(l,i) -> `Arrow(dand b l, i)
-      | `AndArrow(l,xs) -> `AndArrow(dand b l,xs)
+      | `Arrow(l,i) -> `Arrow(dand' b l, i)
+      | `AndArrow(l,xs) -> `AndArrow(dand' b l,xs)
       | `OrArrow xs -> `OrArrow (List.map (propagate b) xs)
     in
     let rec insert l i = function
@@ -257,22 +300,22 @@ struct
       begin
         match classify x, classify y with
         | `Arrow(l,i), `Arrow(l',j)  ->
-          if i=True then `Arrow(dand l l',j)
-          else if j=True || i=j then `Arrow(dand l l',i)
-          else `AndArrow(dand l l',
+          if i=True then `Arrow(dand' l l',j)
+          else if j=True || i=j then `Arrow(dand' l l',i)
+          else `AndArrow(dand' l l',
             [`Arrow(True,i); `Arrow(True,j)])
 
         | `Arrow(l,i), `AndArrow(l',xs)
         | `AndArrow(l',xs), `Arrow(l,i) ->
           let xs' = if i = True then xs else `Arrow(True,i)::xs in
-          `AndArrow(dand l l', xs')
+          `AndArrow(dand' l l', xs')
 
         | `Arrow(l,i), `OrArrow xs
         | `OrArrow xs, `Arrow(l,i) ->
           if i=True then propagate l (`OrArrow xs)
           else `AndArrow(l, [`Arrow(True,i);`OrArrow xs])
 
-        | `AndArrow(l,xs), `AndArrow(l',xs') -> `AndArrow(dand l l', xs@xs')
+        | `AndArrow(l,xs), `AndArrow(l',xs') -> `AndArrow(dand' l l', xs@xs')
 
         | `AndArrow(l,xs), `OrArrow xs'
         | `OrArrow xs', `AndArrow(l,xs) ->
@@ -403,7 +446,6 @@ struct
           match x',y' with
           | False,z | z,False -> False
           | True,z | z,True -> z
-          | Not x, Not y -> Not(Or(x,y))
           | Or(x,y), Or(v,w) ->
             if x=v then simplify (And(x,Or(y,w)))
             else if x=w then simplify (And(x,Or(y,v)))
@@ -427,7 +469,6 @@ struct
           match x',y' with
           | True,z | z,True -> True
           | False,z | z,False -> z
-          | Not x, Not y -> Not(And(x,y))
           | x, And(y,z) | And(y,z), x ->
             if x=y || x=z then x
             else Or(x,And(y,z))
@@ -439,6 +480,8 @@ struct
     | x -> x
     in
     f'
+
+  let simplify f = f
 
   let rec iter_states fn f =
     match f with
@@ -462,21 +505,21 @@ struct
       match map_states fn x with
       | True -> False
       | False -> True
-      | x -> Not(x)
+      | x -> dnot x
       end
     | And(x,y) ->
       begin
         match map_states fn x, map_states fn y with
         | True,z | z,True -> z
         | False,z | z,False -> False
-        | x,y -> And(x,y)
+        | x,y -> dand x y
       end
     | Or(x,y) ->
       begin
         match map_states fn x, map_states fn y with
         | True,z | z,True -> True
         | False,z | z,False -> z
-        | x,y -> Or(x,y)
+        | x,y -> dor x y
       end
     | x -> x
 
@@ -602,11 +645,12 @@ struct
     IntSetHashtbl.iter (fun ix lx ->
       IntSetHashtbl.iter (fun iy ly ->
         let is = IS.union ix iy in
+        (*Printf.eprintf "lx = %s;  ly = %s\n" (to_string lx) (to_string ly);*)
         let l = dand' lx ly in
         let l' = try IntSetHashtbl.find res is with Not_found -> False in
-        (*Printf.eprintf "BEFORE: %s\n" (to_string (dor l l'));*)
+        (*Printf.eprintf "BEFORE: **%s** **%s**\n" (to_string l) (to_string l');*)
         let label = dor' l l' in
-        (*Printf.eprintf "AFTER:  %s\n" (to_string label);*)
+        (*Printf.eprintf "AFTER:  %s\n\n" (to_string label);*)
 
         if not (is_false label) then
           IntSetHashtbl.replace res is label

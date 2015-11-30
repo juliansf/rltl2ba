@@ -4,7 +4,12 @@ open Entry
 let build_initial_env add_builtin mgr =
   let builtin_functions = [
     "!",
-    FunEntry (fun x -> ValEntry (Expgen.bool_not mgr (val_entry x)));
+    FunEntry (fun x ->
+      let xnode = val_entry x in
+      if Expgen.is_bool mgr xnode then
+        ValEntry (Expgen.bool_not mgr xnode)
+      else
+        ValEntry (Expgen.rltl_not mgr xnode));
 
     "&",
     FunEntry (fun x -> FunEntry (fun y ->
@@ -13,6 +18,10 @@ let build_initial_env add_builtin mgr =
     "|",
     FunEntry (fun x -> FunEntry (fun y ->
       ValEntry (Expgen.bool_or mgr (val_entry x) (val_entry y))));
+
+    "^",
+    FunEntry (fun x -> FunEntry (fun y ->
+      ValEntry (Expgen.bool_xor mgr (val_entry x) (val_entry y))));
 
     "->",
     FunEntry (fun x -> FunEntry (fun y ->
@@ -73,6 +82,10 @@ let build_initial_env add_builtin mgr =
     "or",
     FunEntry (fun x -> FunEntry (fun y ->
       ValEntry (Expgen.rltl_or mgr (val_entry x) (val_entry y))));
+
+    "xor",
+    FunEntry (fun x -> FunEntry (fun y ->
+      ValEntry (Expgen.rltl_xor mgr (val_entry x) (val_entry y))));
 
     "implies",
     FunEntry (fun x -> FunEntry (fun y ->

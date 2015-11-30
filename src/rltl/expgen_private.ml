@@ -139,6 +139,22 @@ let bool_or mgr n1 n2 =
     else Manager.add mgr (_bool (BoolOr (x,y))) in
   make_idempotent_commutative f n1 n2
 
+let bool_xor mgr n1 n2 =
+  make_bool mgr n1;
+  make_bool mgr n2;
+  if n1 = n2 then const_false
+  else if n1 = const_false then n2
+  else if n1 = const_true then bool_not mgr n2
+  else if n2 = const_false then n1
+  else if n2 = const_true then bool_not mgr n1
+  else begin
+    let not_n1 = bool_not mgr n1 in
+    let not_n2 = bool_not mgr n2 in
+    let n1_and_not_n2 = bool_and mgr n1 not_n2 in
+    let not_n1_and_n2 = bool_and mgr not_n1 n2 in
+    bool_or mgr n1_and_not_n2 not_n1_and_n2
+  end
+
 let bool_impl mgr n1 n2 =
   if n1 = const_false || n1 = n2 then const_true
   else begin
@@ -245,22 +261,45 @@ let rec rltl_not mgr node =
       end
   end
 
-let rltl_or mgr n1 n2 =
-  make_rltl mgr n1;
-  make_rltl mgr n2;
-  let f x y = Manager.add mgr (_rltl (RltlOr (x, y))) in
-  make_idempotent_commutative f n1 n2
-
 let rltl_and mgr n1 n2 =
   make_rltl mgr n1;
   make_rltl mgr n2;
-  let f x y = Manager.add mgr (_rltl (RltlAnd (x, y))) in
+  let f x y =
+    if x = const_false || y = const_false then const_false
+    else if x = const_true then y
+    else if y = const_true then x
+    else Manager.add mgr (_rltl (RltlAnd (x, y))) in
   make_idempotent_commutative f n1 n2
 
-let rltl_impl mgr n1 n2 =
-  let not_n1 = rltl_not mgr n1 in
+let rltl_or mgr n1 n2 =
+  make_rltl mgr n1;
   make_rltl mgr n2;
-  rltl_or mgr not_n1 n2
+  let f x y =
+    if x = const_true || y = const_true then const_true
+    else if x = const_false then y
+    else if y = const_false then x
+    else Manager.add mgr (_rltl (RltlOr (x, y))) in
+  make_idempotent_commutative f n1 n2
+
+let rltl_xor mgr n1 n2 =
+  make_rltl mgr n1;
+  make_rltl mgr n2;
+  if n1 = n2 then const_false
+  else begin
+    let not_n1 = rltl_not mgr n1 in
+    let not_n2 = rltl_not mgr n2 in
+    let n1_and_not_n2 = rltl_and mgr n1 not_n2 in
+    let not_n1_and_n2 = rltl_and mgr not_n1 n2 in
+    rltl_or mgr n1_and_not_n2 not_n1_and_n2
+  end
+
+let rltl_impl mgr n1 n2 =
+  if n1 = const_false || n1 = n2 then const_true
+  else begin
+    let not_n1 = rltl_not mgr n1 in
+    make_rltl mgr n2;
+    rltl_or mgr not_n1 n2
+  end
 
 let rltl_iff mgr n1 n2 =
   if n1 = n2 then const_true
@@ -281,7 +320,14 @@ let rltl_power mgr pfl ofl x y r =
   make_rltl mgr x;
   make_rltl mgr y;
   make_regex mgr r;
-  Manager.add mgr (_rltl (RltlPower (pfl, ofl, x, y, r)))
+  match pfl,ofl with
+  | RegularPower,WithoutOverlap -> begin
+    let {exp_rltl=yexp} = getexp mgr y in
+    match yexp with
+    | Some RltlFalse -> const_false
+    | _ -> Manager.add mgr (_rltl (RltlPower (pfl, ofl, x, y, r)))
+  end
+  | _ -> Manager.add mgr (_rltl (RltlPower (pfl, ofl, x, y, r)))
 
 let rltl_closure mgr node =
   make_regex mgr node;

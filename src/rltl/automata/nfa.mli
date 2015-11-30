@@ -12,6 +12,7 @@ module type S = sig
     { nfa_delta: trans array;
       nfa_start: int;
       nfa_final: bool array;
+      nfa_scc: (int array) array;
     }
 
   val size : t -> int
@@ -23,6 +24,8 @@ module type S = sig
   val fusion : t -> t -> t
   val plus : t -> t -> t
   val product : t -> t -> t
+
+  val tarjanSCC : trans array -> (int array) array
 end
 
 module Make(B : Bool.S) : S with module Label = B

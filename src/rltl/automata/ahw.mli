@@ -1,25 +1,30 @@
 module type S = sig
   type error =
   | Invalid_Ahw
+  | Invalid_Ahw_Reference
 
   exception Error of error
 
   module Nfa : Nfa.S
 
   type state = int
+  type reference = int
   type trans = Nfa.Label.t
+  type label = Nfa.Label.t
   type stratum = int
-  type strat_kind = SAccept | SReject | SBuchi | SCoBuchi
+  type strat_kind = SAccept | SReject | SBuchi | SCoBuchi | STransient
   type goodness = Good | Bad | Neutral
 
   type manager =
     { ahw_bddmgr: Bdd.manager;
       ahw_delta: (state, trans) Hashtbl.t;
+      ahw_init: (reference, label) Hashtbl.t;
       ahw_final: (state, unit) Hashtbl.t;
       ahw_stratum: (state, stratum) Hashtbl.t;
       ahw_strata: (stratum, strat_kind) Hashtbl.t;
       ahw_simplified: (state, unit) Hashtbl.t;
       ahw_pred: (state, (state, unit) Hashtbl.t) Hashtbl.t;
+      ahw_ref_number: int ref;
       ahw_state_number: int ref;
       ahw_stratum_number: int ref;
       ahw_size: (state, int) Hashtbl.t;
@@ -29,6 +34,7 @@ module type S = sig
     }
 
   type ahw = state
+
   type t = ahw
 
   val init: Bdd.manager -> manager
@@ -63,6 +69,7 @@ module type S = sig
   (* Auxiliary functions *)
   val size: manager -> t -> int
   val is_final: manager -> state -> bool
+  val get_init: manager -> reference -> label
   val get_delta: manager -> state -> trans
   val get_stratum: manager -> state -> stratum
   val get_stratum_kind: manager -> stratum -> strat_kind
@@ -70,6 +77,7 @@ module type S = sig
   val get_stratum_size: manager -> t -> stratum -> int
   val pred: manager -> state -> Misc.IntSet.t
   val goodness: manager -> state -> goodness
+  val is_very_weak: manager -> state -> bool
 end
 
 

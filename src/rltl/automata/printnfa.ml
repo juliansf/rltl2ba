@@ -10,10 +10,21 @@ type desc =
 
 type info = { size : int }
 
+let print_scc fmt nfa =
+  Array.iteri (fun sidx s ->
+
+        Format.fprintf fmt "SCC(%d): " sidx;
+        Array.iter (fun i ->
+            Format.fprintf fmt "%d " i
+          ) s;
+        Format.fprintf fmt "\n";
+
+    ) nfa.nfa_scc
+
 let print_nfa print_label fmt nfa =
   let nfa =
     if nfa = Nfa.nfa_false then
-      { nfa_delta=[|[]|]; nfa_start=0; nfa_final=[|false|]; }
+      { nfa_delta=[|[]|]; nfa_start=0; nfa_final=[|false|]; nfa_scc=[|[|0|]|]; }
     else
       nfa
   in
@@ -33,7 +44,8 @@ let print_nfa print_label fmt nfa =
       (if i=nfa.nfa_start then "i" else " ")
       (if nfa.nfa_final.(i) then "f" else " ")
       print_delta nfa.nfa_delta.(i)
-  done
+  done;
+  print_scc fmt nfa
 
 let raw_desc label info =
   let final = Array.create info.size false in
@@ -82,7 +94,7 @@ let dot_desc label info =
 let fprintf desc fmt nfa =
   let nfa =
     if nfa = Nfa.nfa_false then
-      {nfa_delta=[|[]|]; nfa_start=0; nfa_final=[|false|]}
+      { nfa_delta=[|[]|]; nfa_start=0; nfa_final=[|false|]; nfa_scc=[|[|0|]|]; }
     else
       nfa
   in

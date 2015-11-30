@@ -65,6 +65,7 @@ module SereSet :
     val max_elt : t -> elt
     val choose : t -> elt
     val split : elt -> t -> t * bool * t
+    val find : elt -> t -> elt
   end
 module SereMap :
   sig
@@ -131,6 +132,7 @@ module PhiSet :
     val max_elt : t -> elt
     val choose : t -> elt
     val split : elt -> t -> t * bool * t
+    val find : elt -> t -> elt
   end
 module PhiMap :
   sig

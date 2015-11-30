@@ -2,6 +2,7 @@
 (* Errors *)
 exception Fatal_error
 exception ValOf_None
+exception Not_implemented
 
 let fatal_error msg =
   prerr_string ">> Fatal error: "; prerr_endline msg; raise Fatal_error

@@ -50,6 +50,7 @@
       "W", WUNTIL;
       "weak_until", WUNTIL;
       "with", WITH;
+      "xor", XOR;
     ]
 
 (* Update the current location with file name and line number *)
@@ -126,6 +127,7 @@ rule token = parse
 | ":"   { COLON }
 | "&"   { AMPERSAND }
 | "|"   { BAR }
+| "^"   { HAT }
 | "&&"  { AMPERAMPER }
 | "||"  { BARBAR }
 | "*"   { STAR }

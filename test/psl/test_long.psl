@@ -1,0 +1,19 @@
+MODULE main
+VAR a0 : boolean;
+VAR a1 : boolean;
+VAR a2 : boolean;
+VAR a3 : boolean;
+VAR a4 : boolean;
+VAR a5 : boolean;
+VAR a6 : boolean;
+VAR a7 : boolean;
+VAR a8 : boolean;
+VAR a9 : boolean;
+VAR a10 : boolean;
+VAR a11 : boolean;
+VAR a12 : boolean;
+VAR a13 : boolean;
+VAR a14 : boolean;
+
+PSLSPEC
+( ( never ( {a8;!a9} |-> {a14;TRUE} ) ) & ( ( ( never ( {a6;a14;a14[*];a13;a10;a3[*];a2;a2} |-> {!a8;a10;a10;!a7;a5;a11;a2;a6[*];a1} ) ) & ( ( ( never {{a0;a14;a0;TRUE;a12;a1} && {TRUE[*];a0;a14;!a11;a2;a14[*]}} ) & ( ( ( always ( {a4;TRUE;!a0;a12} |-> {a3;a0;a8[*];TRUE} ) ) & ( always ( {a13;a2;a13;a3;TRUE;a10} |-> {a0;a11;a1[*];!a6;!a5[*];!a11[*];a4;a2;a9[*]} ) ) ) ) ) ) ) ) );
