@@ -66,3 +66,9 @@ val dualweak: unit -> power_flag
 
 val positive: unit -> closure_flag
 val negative: unit -> closure_flag
+
+(* Memory Management *)
+val link: manager -> node -> unit
+val unlink: manager -> node -> unit
+val links: manager -> node -> int
+val clean: manager -> unit

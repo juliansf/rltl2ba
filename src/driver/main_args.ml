@@ -1,7 +1,7 @@
 
 let mk_annot f =
   "-annot", Arg.Unit f,
-  " Print the parsed expression with type information"
+  " Print the parsed expression with type information."
 ;;
 
 let mk_ahw f =
@@ -9,14 +9,17 @@ let mk_ahw f =
   " Output the generated AHW automaton of the parsed expression."
 ;;
 
+let mk_debug f =
+  "-debug", Arg.Int f, "<level>  Enables debug mode at <level>."
+
 let mk_dintcode f =
   "-dintcode", Arg.Unit f,
-  " Dump the internal representation of the parsed expression"
+  " Dump the internal representation of the parsed expression."
 ;;
 
 let mk_dparsetree f =
   "-dparsetree", Arg.Unit f,
-  " Dump the parse tree of the parsed expression"
+  " Dump the parse tree of the parsed expression."
 ;;
 
 let mk_dot f =
@@ -40,7 +43,7 @@ let mk_nfa f =
 ;;
 
 let mk_o f =
-  "-o", Arg.String f, "<file>  Set the output to <file>"
+  "-o", Arg.String f, "<file>  Set the output to <file>."
 ;;
 
 let mk_psl f =
@@ -50,19 +53,19 @@ let mk_psl f =
 
 let mk_rank f =
   "-kind", Arg.String f,
-  (" Chooses the ranking used in the AHW to NBW translation. Options are"
-   ^ "'full', 'max2' and 'stratified' (default).")
+  (" Chooses the ranking used in the AHW to NBW translation.\n"
+    ^"\tOptions are 'full', 'max2' and 'stratified' (default).")
 ;;
 
 let mk_s f =
-  "-f", Arg.String f, "<expr>  Treats <expr> as an expression"
+  "-f", Arg.String f, "<expr>  Treats <expr> as an expression."
 
 let mk_stdin f =
-  "-stdin", Arg.Unit f, " Reads the expresion from standard input"
+  "-stdin", Arg.Unit f, " Reads the expresion from standard input."
 ;;
 
 let mk_verbose f =
-  "-verbose", Arg.Int f, "<level>  Sets verbosity to <level>"
+  "-verbose", Arg.Int f, "<level>  Sets verbosity to <level>."
 
 let mk_version f =
   "-version", Arg.Unit f, " Prints version number and exit"
@@ -71,6 +74,7 @@ let mk_version f =
 module type Rltlba_options = sig
   val _annot : unit -> unit
   val _ahw : unit -> unit
+  val _debug : int -> unit
   val _dintcode : unit -> unit
   val _dparsetree : unit -> unit
   val _dot : unit -> unit
@@ -95,6 +99,7 @@ struct
   let list = [
     mk_annot F._annot;
     mk_ahw F._ahw;
+    mk_debug F._debug;
     mk_dintcode F._dintcode;
     mk_dparsetree F._dparsetree;
     mk_dot F._dot;

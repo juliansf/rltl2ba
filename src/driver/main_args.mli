@@ -2,6 +2,7 @@
 module type Rltlba_options = sig
   val _annot : unit -> unit
   val _ahw : unit -> unit
+  val _debug : int -> unit
   val _dintcode : unit -> unit
   val _dparsetree : unit -> unit
   val _dot : unit -> unit

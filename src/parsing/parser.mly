@@ -76,6 +76,7 @@
 %token NOT
 %token OR
 %token OVERLAP
+%token OVERLAPPED
 %token PLUS
 %token RB
 %token RELEASE
@@ -150,6 +151,16 @@ expr:
     { mkexp (Pexp_power (pf, x, y, Some r)) $startpos $endpos }
 | expr power_oper expr WITH error
     { expected "delay" $startpos($5) $endpos($5) }
+
+/*| x=expr OVERLAPPED pf=power_oper y=expr %prec below_WITH
+    { mkexp (Pexp_overlap (mkexp (Pexp_power (pf, x, y, None)) $startpos $endpos)) $startpos $endpos }
+| x=expr OVERLAPPED pf=power_oper y=expr WITH DELAY r=expr
+    { mkexp (Pexp_overlap (mkexp (Pexp_power (pf, x, y, Some r)) $startpos $endpos)) $startpos $endpos }
+| expr OVERLAPPED error
+    { expected "power operator" $startpos($3) $endpos($3) }
+| expr OVERLAPPED power_oper expr WITH error
+    { expected "delay" $startpos($5) $endpos($5) }*/
+
 | oper=prefix_oper LP e=expr RP
     { mkexp (oper e) $startpos $endpos }
 | prefix_oper LP expr error

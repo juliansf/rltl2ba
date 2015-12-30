@@ -1,3 +1,6 @@
+let format_fprintf = Format.ifprintf;;
+let format_eprintf fmt = Printf.ifprintf stderr fmt;;
+
 module IS = Misc.IntSet
 module IntSetHashtbl = Misc.SetHashtbl(Misc.IntSet)
 
@@ -99,7 +102,7 @@ struct
     | And (x,y) -> to_string x ^ " && "^ to_string y
     | Or (x,y) ->  "("^to_string x ^") || ("^ to_string y^")"
 
-  let print fmt l = Format.fprintf fmt "%s" (to_string l)
+  let print fmt l = format_fprintf fmt "%s" (to_string l)
 
   let compare_bool x y =
     match x,y with
@@ -168,8 +171,8 @@ struct
     | Or(x,y) -> dand' (dnot' x) (dnot' y)
     | x -> Not(x)
     in
-    (*Printf.eprintf "########dnot'\nx=%s\n" (to_string x);
-      Printf.eprintf "z=%s\n\n" (to_string z);*)
+    (*format_eprintf "########dnot'\nx=%s\n" (to_string x);
+      format_eprintf "z=%s\n\n" (to_string z);*)
     z
 
   and dand' x y =
@@ -191,8 +194,8 @@ struct
     | x,y when x=y -> x
     | x,y -> dand x y
     in
-    (*Printf.eprintf ":::::::::::dand'\nx=%s\ny=%s\n" (to_string x) (to_string y);
-      Printf.eprintf "z=%s\n\n" (to_string z);*)
+    (*format_eprintf ":::::::::::dand'\nx=%s\ny=%s\n" (to_string x) (to_string y);
+      format_eprintf "z=%s\n\n" (to_string z);*)
     z
 
   and  dor' x y =
@@ -205,8 +208,8 @@ struct
     | x,y when x=y -> x
     | _ -> merge_disj x y
     in
-    (*Printf.eprintf "++++++++++++++++dor'\nx=%s\ny=%s\n" (to_string x) (to_string y);
-      Printf.eprintf "z=%s\n\n" (to_string z);*)
+    (*format_eprintf "++++++++++++++++dor'\nx=%s\ny=%s\n" (to_string x) (to_string y);
+      format_eprintf "z=%s\n\n" (to_string z);*)
     z
 
   and uniques unit xs =
@@ -223,7 +226,7 @@ struct
 
   and merge_conj x y =
     (* We assume [x] and [y] are simplified conjunctions. *)
-    Printf.eprintf "merge_conj :: x = %s;  y = %s\n" (to_string x) (to_string y);
+    format_eprintf "merge_conj :: x = %s;  y = %s\n" (to_string x) (to_string y);
     let xs,ys = conj_list x, conj_list y in
     let x,y,xs,ys = if List.length xs <= List.length ys
       then x,y,xs,ys else y,x,ys,xs in
@@ -234,17 +237,17 @@ struct
 
   and merge_disj x y =
     (* We assume [x] and [y] are both SOP *)
-    Printf.eprintf "merge_disj :: x = %s;  y = %s\n" (to_string x) (to_string y);
+    format_eprintf "merge_disj :: x = %s;  y = %s\n" (to_string x) (to_string y);
     let xs,ys = disj_list x, disj_list y in
-    List.iteri (fun i x -> Printf.eprintf "xs[%d] = %s\n" i (to_string x)) xs;
-    List.iteri (fun i y -> Printf.eprintf "ys[%d] = %s\n" i (to_string y)) ys;
+    List.iteri (fun i x -> format_eprintf "xs[%d] = %s\n" i (to_string x)) xs;
+    List.iteri (fun i y -> format_eprintf "ys[%d] = %s\n" i (to_string y)) ys;
     let xs,ys = List.fold_right (fun w (zs,us) ->
         let (vs,seen) = propagate_disj w zs in
         if seen then (vs,us)
         else (vs, w::us)
       ) xs (ys,[]) in
-    List.iteri (fun i x -> Printf.eprintf "xs[%d] = %s\n" i (to_string x)) xs;
-    List.iteri (fun i y -> Printf.eprintf "ys[%d] = %s\n" i (to_string y)) ys;
+    List.iteri (fun i x -> format_eprintf "xs[%d] = %s\n" i (to_string x)) xs;
+    List.iteri (fun i y -> format_eprintf "ys[%d] = %s\n" i (to_string y)) ys;
     let x' = disj_of_list xs in
     let y' = disj_of_list ys in
     if x' = False then y' else if y' = False then x'
@@ -253,8 +256,8 @@ struct
 
 
   and propagate_disj x xs =
-    Printf.eprintf "propagate_disj::x = %s\n" (to_string x);
-    List.iteri (fun i x -> Printf.eprintf "propagate_disj::xs[%d] = %s\n" i (to_string x)) xs;
+    format_eprintf "propagate_disj::x = %s\n" (to_string x);
+    List.iteri (fun i x -> format_eprintf "propagate_disj::xs[%d] = %s\n" i (to_string x)) xs;
     try (List.fold_right (fun y ys ->
         let mrg = merge_conj x y in
         if List.length mrg = 2 then y::ys
@@ -531,7 +534,7 @@ struct
   let nodes = Hashtbl.create 8
 
   let toBdd f =
-    (*Printf.fprintf stderr "toBdd...%!";*)
+    (*format_fprintf stderr "toBdd...%!";*)
     let rec toBdd' = function
       | True -> Cudd.dtrue mgr.Bdd.bdd_mgr
       | False -> Cudd.dfalse mgr.Bdd.bdd_mgr
@@ -544,9 +547,9 @@ struct
           Hashtbl.add bstates i x;
           x
         end
-      | Not x -> (*Printf.fprintf stderr "not %!";*)Cudd.dnot (toBdd' x)
-      | And(x,y) -> (*Printf.fprintf stderr "and %!";*)Cudd.dand (toBdd' x) (toBdd' y)
-      | Or(x,y) -> (*Printf.fprintf stderr "or %!";*)Cudd.dor (toBdd' x) (toBdd' y)
+      | Not x -> (*format_fprintf stderr "not %!";*)Cudd.dnot (toBdd' x)
+      | And(x,y) -> (*format_fprintf stderr "and %!";*)Cudd.dand (toBdd' x) (toBdd' y)
+      | Or(x,y) -> (*format_fprintf stderr "or %!";*)Cudd.dor (toBdd' x) (toBdd' y)
     in
     let x =
       if Hashtbl.mem nodes f then
@@ -557,12 +560,12 @@ struct
         res, false
       end
     in x
-    (*Printf.fprintf stderr " done\n%!";*)
+    (*format_fprintf stderr " done\n%!";*)
     (*toBdd' f, false*)
 
   let n = ref 0
   let is_true f =
-    (*Printf.fprintf stderr "is_true?(%s)\n%!" (to_string f);*)
+    (*format_fprintf stderr "is_true?(%s)\n%!" (to_string f);*)
     try
       iter_states (fun _ -> assert false) f;
       let res,bdd_check =
@@ -574,14 +577,14 @@ struct
                Cudd.is_true node,
                "YES ["^if cached then "cached]" else "uncached]"
       in
-      (*Printf.eprintf "n: %d :: is_true(%s) (BDD check: %s)\n"
+      (*format_eprintf "n: %d :: is_true(%s) (BDD check: %s)\n"
         !n (to_string f) bdd_check;*)
       incr n;
       res
     with _ -> false
 
   let is_false f =
-    (*Printf.fprintf stderr "is_false?(%s)\n%!" (to_string f);*)
+    (*format_fprintf stderr "is_false?(%s)\n%!" (to_string f);*)
     try
       iter_states (fun _ -> assert false) f;
       let res,bdd_check =
@@ -593,7 +596,7 @@ struct
                Cudd.is_false node,
                "YES ["^if cached then "cached]" else "uncached]"
       in
-      (*Printf.eprintf "n: %d :: is_false(%s) (BDD check: %s)\n"
+      (*format_eprintf "n: %d :: is_false(%s) (BDD check: %s)\n"
         !n (to_string f) bdd_check;*)
       incr n;
       res
@@ -634,9 +637,9 @@ struct
 *)
 
   let printset is =
-    Format.eprintf "{ ";
-    IS.iter (fun i -> Format.eprintf "%d " i) is;
-    Format.eprintf "}"
+    format_eprintf "{ ";
+    IS.iter (fun i -> format_eprintf "%d " i) is;
+    format_eprintf "}"
 
   let arrows_product xt yt =
     let res = IntSetHashtbl.create
@@ -645,12 +648,12 @@ struct
     IntSetHashtbl.iter (fun ix lx ->
       IntSetHashtbl.iter (fun iy ly ->
         let is = IS.union ix iy in
-        (*Printf.eprintf "lx = %s;  ly = %s\n" (to_string lx) (to_string ly);*)
+        (*format_eprintf "lx = %s;  ly = %s\n" (to_string lx) (to_string ly);*)
         let l = dand' lx ly in
         let l' = try IntSetHashtbl.find res is with Not_found -> False in
-        (*Printf.eprintf "BEFORE: **%s** **%s**\n" (to_string l) (to_string l');*)
+        (*format_eprintf "BEFORE: **%s** **%s**\n" (to_string l) (to_string l');*)
         let label = dor' l l' in
-        (*Printf.eprintf "AFTER:  %s\n\n" (to_string label);*)
+        (*format_eprintf "AFTER:  %s\n\n" (to_string label);*)
 
         if not (is_false label) then
           IntSetHashtbl.replace res is label

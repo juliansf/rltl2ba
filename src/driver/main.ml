@@ -55,6 +55,7 @@ module Options = Main_args.Make_rltlba_options(struct
     else a := true
   let _annot = set annot
   let _ahw = set_kind (ahw,nfa,nbw)
+  let _debug n = debug := n
   let _dintcode = set dump_intcode
   let _dparsetree = set dump_parsetree
   let _dot = set dot

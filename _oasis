@@ -49,7 +49,8 @@ Library utils
   Modules: Misc,
            Config,
            Clflags,
-           Warnings
+           Warnings,
+           Logger
   Install$: flag(libraries)
 
 #Library "psllib"

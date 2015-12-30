@@ -294,28 +294,29 @@ struct
   let from_ahw_using_rankings ?rank:(rank_type=StratifiedRank) mgr ahw =
     let stratum = Ahw.get_stratum mgr.nbw_ahwmgr in
     let is_good x = Ahw.goodness mgr.nbw_ahwmgr x = Ahw.Good in
+    let ahw_pred x = Ahw.pred mgr.nbw_ahwmgr ahw x in
     let pred_set x =
-      let pred = Ahw.pred mgr.nbw_ahwmgr x in
+      let pred = ahw_pred x in
       match rank_type with
       | StratifiedRank ->
         IS.filter (fun y -> stratum y = stratum x) pred
       | _ -> pred
     in
-    let rejecting_singleton h =
+(*    let rejecting_singleton h =
       match rank_type with
       | StratifiedRank -> (Ahw.get_stratum_size mgr.nbw_ahwmgr ahw h) = 1
       | _ -> false
-    in
+      in*)
 
     let size = Ahw.size mgr.nbw_ahwmgr ahw in
     let init_disj = Label.disj_list (Ahw.get_init mgr.nbw_ahwmgr ahw) in
     let state_number = ref (-1) in
-    let f_number = ref (-1) in
+    (*let f_number = ref (-1) in*)
     let node_number = ref (-1) in
 
     let new_count r = incr r; !r in
     let new_state () = new_count state_number in
-    let new_f () = new_count f_number in
+    (*let new_f () = new_count f_number in*)
     let new_node () = new_count node_number in
 
     let waiting = Queue.create () in
@@ -326,24 +327,24 @@ struct
     let delta = Hashtbl.create 8 in
     let state_sets : int IntSetHashtbl.t = IntSetHashtbl.create 8 in
     let state_sets_reverse : (int, IS.t) Hashtbl.t = Hashtbl.create 8 in
-    let f_funcs :
-        ((state,int) Hashtbl.t, int) Hashtbl.t = Hashtbl.create 8 in
-    let f_funcs_reverse :
-        (int, (state,int) Hashtbl.t) Hashtbl.t = Hashtbl.create 8 in
+    (*let f_funcs :
+        ((state,int) Hashtbl.t, int) Hashtbl.t = Hashtbl.create 8 in*)
+    (*let f_funcs_reverse :
+        (int, (state,int) Hashtbl.t) Hashtbl.t = Hashtbl.create 8 in*)
     let initial_states = Hashtbl.create 8 in
     let nodes_map = Hashtbl.create 8 in
     let nodes_map_reverse = Hashtbl.create 8 in
-    let node_rel  = Hashtbl.create 8 in
-    let node_rel_map = Hashtbl.create 8 in
+    (*let node_rel  = Hashtbl.create 8 in
+      let node_rel_map = Hashtbl.create 8 in*)
     let state_rel : (int, (Label.t IntSetHashtbl.t, IS.t) Hashtbl.t) Hashtbl.t =
       Hashtbl.create 8 in
     let state_rel_map : IS.t IntSetHashtbl.t = IntSetHashtbl.create 8 in
     let transient_states = IntSetHashtbl.create 8 in
 
 
-    let equiv_node node = equiv_node delta node_rel node_rel_map node in
+    (*let equiv_node node = equiv_node delta node_rel node_rel_map node in*)
 
-    let equiv_deltas (dx : Label.t IntSetHashtbl.t) (dy : Label.t IntSetHashtbl.t) =
+(*    let equiv_deltas (dx : Label.t IntSetHashtbl.t) (dy : Label.t IntSetHashtbl.t) =
       if IntSetHashtbl.length dx = IntSetHashtbl.length dy then begin
         try IntSetHashtbl.iter (fun ix lx ->
             let ly = IntSetHashtbl.find dy ix in
@@ -353,8 +354,8 @@ struct
       end
       else false
     in
-
-    let equiv_state (state : IS.t) =
+*)
+(*    let equiv_state (state : IS.t) =
       if IntSetHashtbl.mem state_rel_map state then begin
         IntSetHashtbl.find state_rel_map state
       end
@@ -391,7 +392,7 @@ struct
         end
       end
     in
-
+*)
     let replacing_state (state : IS.t) =
       if IntSetHashtbl.mem state_rel_map state then
         IntSetHashtbl.find state_rel_map state
@@ -406,7 +407,7 @@ struct
         let ls = List.fold_right IS.add (Label.states l) IS.empty in
         IntSetHashtbl.add initial ls ();
         Queue.add ls waiting;
-      ) init_disj;
+        ) init_disj;
       (*Queue.add (!initial) waiting;*)
       while not (Queue.is_empty waiting) do
         let x = Queue.take waiting in
@@ -484,13 +485,14 @@ struct
         ) transient_states;*)
 
       (* Third, compute the equivalent states *)
+
       (*Format.eprintf "nbw_delta.size = %d\n" (IntSetHashtbl.length nbw_delta);*)
-      IntSetHashtbl.iter (fun x _ ->
-          let x' = equiv_state x in ()
+      (*IntSetHashtbl.iter (fun x _ ->
+          (*let x' = equiv_state x in ()*)
           (*Format.eprintf "%a --> %a@." printset x printset x';*)
           (*if x != x' then (* This state has an equivalent state. *)
             IntSetHashtbl.remove nbw_delta x;*)
-        ) transient_states;
+        ) transient_states;*)
 
       (* Fourth, replace states by their equivalent states.*)
       begin
@@ -638,7 +640,7 @@ struct
             Format.eprintf "%d -> %a@." node_idx print_node node;
 
             let s_set = Array.fold_right IS.add s IS.empty in
-            let arrows = Hashtbl.create 8 in
+            (*let arrows = Hashtbl.create 8 in*)
             let s_arrows = IntSetHashtbl.find nbw_delta s_set in
             (*show_arrows s_set s_arrows;*)
             let node_delta = Hashtbl.create (IntSetHashtbl.length s_arrows) in
@@ -685,7 +687,7 @@ struct
               ) f_is;
             ) s_arrows;
             Hashtbl.add delta node node_delta;
-            let enode = equiv_node node in ()
+            (*let enode = equiv_node node in ()*)
             (*Format.eprintf "%a -> %a\n" print_node node print_node enode;*)
             end;
         done;
@@ -714,9 +716,12 @@ struct
       else if Ahw.top mgr.nbw_ahwmgr = ahw then begin
         let true_state = {s=[||]; o=[||]; f=[||]; ok=true} in
         let true_delta = Hashtbl.create 1 in
+        let node_idx = new_node () in
         Hashtbl.add true_delta true_state Label.dtrue;
         Hashtbl.add delta true_state true_delta;
-        Hashtbl.add initial_states true_state ()
+        Hashtbl.add initial_states true_state ();
+        Hashtbl.add nodes_map true_state (node_idx);
+        Hashtbl.add nodes_map_reverse node_idx true_state;
       end
       else compute ()) () in
 
@@ -735,7 +740,7 @@ struct
       let x = Queue.take waiting in
       if not (Hashtbl.mem visited x) then begin
         Hashtbl.add visited x ();
-        (*Format.eprintf "%a@." print_node x;*)
+        (*Format.eprintf "nbw.ml@@741: %a@." print_node x;*)
         let x_delta = Hashtbl.find delta x in
         Hashtbl.iter (fun y _ -> Queue.add y waiting) x_delta
       end
@@ -751,12 +756,13 @@ struct
     let _accept = Hashtbl.create 8 in
     let _reject = Hashtbl.create 8 in
 
+
     Hashtbl.iter (fun x succ ->
         let xid = Hashtbl.find nodes_map x in
         let succ' = Hashtbl.create (Hashtbl.length succ) in
         Hashtbl.iter (fun y l ->
             Hashtbl.add succ' (Hashtbl.find nodes_map y) l;
-          ) succ;
+            ) succ;
         if x.ok then Hashtbl.add _accept xid ()
         else Hashtbl.add _reject xid ();
         if Hashtbl.mem initial_states x then Hashtbl.add _istates xid ();
@@ -1564,14 +1570,18 @@ struct
   (* Construction selector                                                    *)
   (****************************************************************************)
   let from_ahw ?rank:(rank_type=StratifiedRank) mgr ahw =
+    Ahw.print_manager mgr.nbw_ahwmgr;
+
     if Ahw.is_very_weak mgr.nbw_ahwmgr ahw then begin
       Printf.eprintf "AHW is VERY WEAK!\n";
       Printf.eprintf "Applying generalized construction.\n";
-      from_ahw_using_generalized mgr ahw
+      try from_ahw_using_generalized mgr ahw
+      with Not_found -> failwith "Nbw.from_ahw.generalized"
     end
     else begin
       Printf.eprintf "AHW is NOT VERY WEAK!\n";
       Printf.eprintf "Applying ranking construction.\n";
-      from_ahw_using_rankings ~rank:rank_type mgr ahw
+      try from_ahw_using_rankings ~rank:rank_type mgr ahw
+      with Not_found -> failwith "Nbw.from_ahw.rankings"
     end
 end

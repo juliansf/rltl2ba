@@ -141,7 +141,7 @@ let ahw2dot mgr fmt ahw =
                     </tr>@; </table>@]>;@;@;";
 
   (* Print the initial condition *)
-  let i = rename_state ahw in
+  (*let i = rename_state ahw in*)
   Format.fprintf fmt
     "start [shape=plaintext label=\"start\"];@\n";
 
@@ -155,7 +155,7 @@ let ahw2dot mgr fmt ahw =
   (* Add the initial state *)
   let initials = Misc.uniques (Ahw.Nfa.Label.states (get_init mgr ahw)) in
   List.iter (fun i ->
-      Printf.eprintf "s:%d\n" i;
+      Logger.debug ~level:10 "s:%d\n" i;
       Queue.add i waiting; Hashtbl.add visited i ()) initials;
   while not (Queue.is_empty waiting) do
     let q = Queue.take waiting in
@@ -220,12 +220,15 @@ let ahw2dot mgr fmt ahw =
 let print_ahw mgr fmt ahw =
   reset();
 
+  if Logger.level Logger.DEBUG = 10 then
+    Ahw.print_manager mgr;
+
   (* Is the automaton very weak? *)
   Format.fprintf fmt "-- AHW is %svery weak.\n"
     (if Ahw.is_very_weak mgr ahw then "" else "NOT ");
 
   (* Print the initial state *)
-  let init = get_init mgr ahw in
+  (*let init = get_init mgr ahw in*)
   Format.fprintf fmt "-- size: %d\n" (Ahw.size mgr ahw);
   Format.fprintf fmt "start: %s@\n" (Ahw.Nfa.Label.to_string (get_init mgr ahw));
 
@@ -236,7 +239,7 @@ let print_ahw mgr fmt ahw =
   (* Add the initial state *)
   let initials = Misc.uniques (Ahw.Nfa.Label.states (get_init mgr ahw)) in
   List.iter (fun i ->
-    Printf.eprintf "s:%d\n" i;
+    Logger.debug ~level:10 "s:%d\n" i;
     Queue.add i waiting; Hashtbl.add visited i ()) initials;
   while not (Queue.is_empty waiting) do
     let q = Queue.take waiting in
@@ -247,7 +250,7 @@ let print_ahw mgr fmt ahw =
     let h = get_stratum mgr q in
     let hk = stratum_kind mgr h in
     let hs = get_stratum_size mgr ahw h in
-    let h_states = get_stratum_states mgr h in
+    (*let h_states = get_stratum_states mgr h in*)
     Format.fprintf fmt "%4d [%d,%s,%d] : @\n"
       (rename_state q) (rename_stratum h) hk hs;
     List.iter (fun t ->

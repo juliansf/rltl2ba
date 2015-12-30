@@ -5,6 +5,12 @@ let print_if ppf flag printer arg =
 
 let (++) x f = f x
 
+let log_mode () =
+  if !Clflags.verbose >= 0 then
+    Logger.enable Logger.TRACE (!Clflags.verbose);
+  if !Clflags.debug >= 0 then
+    Logger.enable Logger.DEBUG (!Clflags.debug)
+
 let _file ppf parse_f inputfile =
   let ic = open_in_bin inputfile in
   let ast =
@@ -39,6 +45,7 @@ let get_outfmt ppf =
     else Format.formatter_of_out_channel (open_out name)
 
 let expression_file expected_type ppf sourcefile =
+  log_mode ();
   Location.input_name := sourcefile;
   let outfmt = get_outfmt ppf in
   let tyenv = Typeenv.initial in
@@ -58,6 +65,7 @@ let expression_file expected_type ppf sourcefile =
     raise e
 
 let expression_string expected_type ppf str =
+  log_mode ();
   Location.input_name := "(string)";
   let outfmt = get_outfmt ppf in
   let tyenv = Typeenv.initial in

@@ -170,7 +170,7 @@ let print_rltl_expr ppf = function
     Format.fprintf ppf "RltlClosure(%a,%d)"
       fmt_closure_flag cfl (node_id n)
 
-let print_expr i ppf {exp_bool;exp_regex;exp_rltl} =
+let print_expr i ppf {exp_bool;exp_regex;exp_rltl;exp_links} =
   let pp_option f ppf = function
   | None -> Format.fprintf ppf "None"
   | Some e -> Format.fprintf ppf "Some (%a)" f e
@@ -179,6 +179,7 @@ let print_expr i ppf {exp_bool;exp_regex;exp_rltl} =
   line (i+1) ppf "bool: %a;\n" (pp_option print_bool_expr) exp_bool;
   line (i+1) ppf "regex: %a;\n" (pp_option print_regex_expr) exp_regex;
   line (i+1) ppf "rltl: %a;\n" (pp_option print_rltl_expr) exp_rltl;
+  line (i+1) ppf "links: %d;\n" exp_links;
   line i ppf "}\n"
 
 let print_manager ppf mgr =
@@ -186,9 +187,11 @@ let print_manager ppf mgr =
     line 0 ppf "%d:\n" (node_id n);
     print_expr 1 ppf e
   in
-  let size = Manager.size mgr in
+  let lastref = Manager.lastref mgr in
   (*let mgr_array = Array.init size (fun i -> Manager.lookup mgr i) in*)
-  for i=0 to size-1 do
+  for i=0 to lastref do
     (*f i mgr_array.(i)*)
-    f i (Manager.lookup mgr i)
+    try
+      f i (Manager.lookup mgr i)
+    with Not_found -> ()
   done

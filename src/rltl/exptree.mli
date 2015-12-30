@@ -6,7 +6,8 @@ type node = Node.t
 and expression =
   { mutable exp_bool: bool_expr option;
     mutable exp_regex: regex_expr option;
-    mutable exp_rltl: rltl_expr option }
+    mutable exp_rltl: rltl_expr option;
+    mutable exp_links: int; }
 
 and bool_expr =
 | BoolTrue
@@ -40,3 +41,7 @@ and rltl_expr =
 (* Auxiliary functions *)
 val equal_expr: expression -> expression -> bool
 val base: expression (* invalid node *)
+val link: expression -> unit
+val unlink: expression -> unit
+val links: expression -> int
+val iter_nodes: (node -> unit) -> expression -> unit

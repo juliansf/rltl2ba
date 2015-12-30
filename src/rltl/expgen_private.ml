@@ -25,14 +25,16 @@ let init () =
     { exp_bool = Some BoolFalse;
       exp_regex = Some RegexFalse;
       exp_rltl = Some RltlFalse;
+      exp_links = 0;
     } in
   let const_true =
     { exp_bool = Some BoolTrue;
       exp_regex = Some RegexTrue;
       exp_rltl = Some RltlTrue;
+      exp_links = 0;
     } in
-  ignore(Manager.add mgr const_false); (* 0 *)
-  ignore(Manager.add mgr const_true);  (* 1 *)
+  ignore(Manager.add mgr const_false); Exptree.link const_false;(* 0 *)
+  ignore(Manager.add mgr const_true); Exptree.link const_true; (* 1 *)
   mgr
 
 (* Constants *)
@@ -43,6 +45,14 @@ let const_true = 1
 let getexp mgr node =
   try Manager.lookup mgr node
   with Not_found -> raise (Undefined_node node)
+
+(* Internal Memory Management *)
+let link mgr src dst =
+  if src != dst then
+    Exptree.link(getexp mgr dst)
+
+let unlink mgr node =
+  Exptree.unlink(getexp mgr node)
 
 (* Node type tests *)
 let is_bool mgr node =
@@ -93,7 +103,7 @@ let make_idempotent_commutative f x y =
 (* New variable with labeling *)
 let new_var mgr s =
   let node = Manager.add mgr (_bool (BoolIdent s)) in
-  Manager.add mgr (_bool (BoolNot node));
+  ignore(Manager.add mgr (_bool (BoolNot node)));
   node
 
 (* Boolean Expressions *)
@@ -107,36 +117,55 @@ let rec bool_not mgr node =
     | Some bexp -> match bexp with
       | BoolTrue -> const_false
       | BoolFalse -> const_true
-      | BoolIdent _ -> Manager.add mgr (_bool (BoolNot node))
+      | BoolIdent _ ->
+        let n = Manager.add mgr (_bool (BoolNot node)) in
+        (*link mgr n node;*)
+        n
       | BoolNot x -> x
       | BoolOr (x,y) ->
         let not_x = bool_not mgr x in
         let not_y = bool_not mgr y in
-        Manager.add mgr (_bool (BoolAnd (not_x, not_y)))
+        bool_or mgr not_x not_y
+        (*let node' = Manager.add mgr (_bool (BoolAnd (not_x, not_y))) in
+        link mgr node' not_x; link mgr n not_y;
+          node'*)
       | BoolAnd (x,y) ->
         let not_x = bool_not mgr x in
         let not_y = bool_not mgr y in
-        Manager.add mgr (_bool (BoolOr (not_x, not_y)))
+        bool_and mgr not_x not_y
+        (*let node' = Manager.add mgr (_bool (BoolOr (not_x, not_y))) in
+        link mgr node' not_x; link mgr node' not_y;
+          node'*)
   end
 
-let bool_and mgr n1 n2 =
+and bool_and mgr n1 n2 =
   make_bool mgr n1;
   make_bool mgr n2;
   let f x y =
     if x = const_false || y = const_false then const_false
     else if x = const_true then y
     else if y = const_true then x
-    else Manager.add mgr (_bool (BoolAnd(x,y))) in
+    else
+      let z = Manager.add mgr (_bool (BoolAnd(x,y))) in
+      (*link mgr z x;
+        link mgr z y;*)
+      z
+  in
   make_idempotent_commutative f n1 n2
 
-let bool_or mgr n1 n2 =
+and bool_or mgr n1 n2 =
   make_bool mgr n1;
   make_bool mgr n2;
   let f x y =
     if x = const_true || y = const_true then const_true
     else if x = const_false then y
     else if y = const_false then x
-    else Manager.add mgr (_bool (BoolOr (x,y))) in
+    else
+      let z = Manager.add mgr (_bool (BoolOr (x,y))) in
+      (*link mgr z x;
+        link mgr z y;*)
+      z
+  in
   make_idempotent_commutative f n1 n2
 
 let bool_xor mgr n1 n2 =
@@ -336,7 +365,7 @@ let rltl_closure mgr node =
 let mk_overlap mgr node =
   match getexp mgr node with
   | {exp_bool=Some _} -> raise (Node_type_clash node)
-  | {exp_bool=None; exp_regex=None; exp_rltl=Some rexp} as e ->
+  | {exp_bool=None; exp_regex=None; exp_rltl=Some rexp} ->
     let rexp' = match rexp with
       | RltlSeq(_,WithOverlap,_,_)
       | RltlPower(_,WithOverlap,_,_,_) -> raise (Node_already_overlapped node)
@@ -347,7 +376,7 @@ let mk_overlap mgr node =
     (*e.exp_rltl <- Some rexp'*)
     Manager.add mgr (_rltl rexp')
 
-  | {exp_bool=None; exp_regex=Some rexp } as e ->
+  | {exp_bool=None; exp_regex=Some rexp } ->
     let rexp' = match rexp with
       | RegexConcat(WithOverlap,_,_) -> raise (Node_already_overlapped node)
       | RegexConcat(WithoutOverlap,n1,n2) -> RegexConcat(WithOverlap,n1,n2)
@@ -372,3 +401,16 @@ let dualweak () = DualWeakPower
 
 let positive () = Positive
 let negative () = Negative
+
+
+(** Memory Management functions *)
+
+(* [link] external interface. *)
+let link mgr node =
+  link mgr (-1) node
+
+let links mgr node =
+  Exptree.links (getexp mgr node)
+
+(* [clean] removes all the non-linked nodes from the manager. *)
+let clean = Manager.clean ~keep_lastref:false

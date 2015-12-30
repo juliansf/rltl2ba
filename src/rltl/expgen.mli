@@ -61,6 +61,11 @@ val dualweak: unit -> power_flag
 val positive: unit -> closure_flag
 val negative: unit -> closure_flag
 
+(* Memory management functions *)
+val link: manager -> node -> unit
+val unlink: manager -> node -> unit
+val clean: manager -> unit
+
 (* Pretty printer of node tree *)
 val print_node: manager -> Format.formatter -> node -> unit
 val print_manager: Format.formatter -> manager -> unit

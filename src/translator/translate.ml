@@ -164,7 +164,7 @@ let expression expected_type typed_exp =
   in
   (* Return the manager and the computed node *)
   manager, match entry with
-  | ValEntry v -> v
+  | ValEntry v -> Expgen.link manager v; Expgen.clean manager; v
   | FunEntry _ -> Misc.fatal_error "Translate.match entry"
 
 

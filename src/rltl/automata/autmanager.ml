@@ -64,7 +64,7 @@ let rec get_label mgr node =
 
   (* Look for the node in the expression manager *)
   else begin
-    let {Bdd.bdd_mgr;bdd_tbl;bdd_vars} = mgr.aut_bddmgr in
+    (*let {Bdd.bdd_mgr;bdd_tbl;bdd_vars} = mgr.aut_bddmgr in*)
     let e =
       try Manager.lookup mgr.aut_expmgr node
       with Not_found -> raise (ExpressionNotFound node)
@@ -74,39 +74,14 @@ let rec get_label mgr node =
     | None -> raise (InvalidExpression node)
     | Some b ->
       begin
-(*        let x = match b with
-          | BoolTrue -> Cudd.dtrue bdd_mgr
-          | BoolFalse -> Cudd.dfalse bdd_mgr
-          | BoolIdent s ->
-            if Hashtbl.mem bdd_vars s then
-              Hashtbl.find bdd_vars s
-            else begin
-              let x = Cudd.newvar bdd_mgr in
-              Hashtbl.add bdd_vars s x;
-              x
-            end
-          | BoolNot x -> Cudd.dnot (get_label mgr x)
-          | BoolOr (x,y) -> Cudd.dor (get_label mgr x) (get_label mgr y)
-          | BoolAnd (x,y) -> Cudd.dand (get_label mgr x) (get_label mgr y)
-        in*)
         let x = match b with
           | BoolTrue -> Cudd.dtrue
           | BoolFalse -> Cudd.dfalse
           | BoolIdent s -> Cudd.datom s
-            (*
-            if Hashtbl.mem bdd_vars s then
-              Hashtbl.find bdd_vars s
-            else begin
-              let x = Cudd.datom s in
-              Hashtbl.add bdd_vars s x;
-              x
-            end
-            *)
           | BoolNot x -> Cudd.dnot (get_label mgr x)
           | BoolOr (x,y) -> Cudd.dor (get_label mgr x) (get_label mgr y)
           | BoolAnd (x,y) -> Cudd.dand (get_label mgr x) (get_label mgr y)
         in
-        (*Hashtbl.add bdd_tbl node x;*)
         Hashtbl.add mgr.aut_label node x;
         x
       end
@@ -176,7 +151,16 @@ let rec get_ahw ?simpl:(simpl=false) mgr node =
           | RltlProp n -> Ahw.letter amgr (get_label mgr n)
           | RltlNot n -> failwith "__file__:__line__: [internal error] cannot ocurr."
             (*Ahw.negate (get_ahw mgr n)*)
-          | RltlOr (n1,n2) -> Ahw.disj amgr (get_ahw mgr n1) (get_ahw mgr n2)
+          | RltlOr (n1,n2) ->
+            let a1 = get_ahw mgr n1 and a2 = get_ahw mgr n2 in
+            let a = Ahw.disj amgr a1 a2 in
+            (*Expgen_private.unlink mgr.aut_expmgr n1;
+            if (Expgen_private.links mgr.aut_expmgr n1 <= 0) then
+              Ahw.unlink_ref amgr a1;
+            Expgen_private.unlink mgr.aut_expmgr n2;
+            if (Expgen_private.links mgr.aut_expmgr  n2 <= 0) then
+              Ahw.unlink_ref amgr a2;*)
+            a
           | RltlAnd (n1,n2) ->
             (try Ahw.conj amgr (get_ahw mgr n1) (get_ahw mgr n2)
             with Not_found -> failwith "Autmanager.get_ahw.RltlAnd")
@@ -217,12 +201,29 @@ let rec get_ahw ?simpl:(simpl=false) mgr node =
             end
         in
         (*if simpl then Ahw.simplify amgr rho;*)
+        Logger.debug ~level:10 "Adding %d -> %d\n" node rho;
         Hashtbl.add mgr.aut_ahw node rho;
+        Ahw.link_ref mgr.aut_ahwmgr rho;
         rho
       end
       with Not_found -> failwith "__file__:__line__: get_ahw"
   end
 
+let get_ahw ?simpl:(simpl=false) mgr node =
+  let ahw = get_ahw ~simpl mgr node in
+  Hashtbl.iter (fun n r ->
+      if n != node then begin
+        Ahw.unlink_ref mgr.aut_ahwmgr r;
+        Hashtbl.remove mgr.aut_ahw n
+      end
+    ) mgr.aut_ahw;
+  Ahw.clean mgr.aut_ahwmgr;
+  ahw
+
 let get_nbw ?(rank=Shared.StratifiedRank) mgr node =
   let ahw = get_ahw ~simpl:true mgr node in
   Nbw.from_ahw ~rank:rank mgr.aut_nbwmgr ahw
+
+
+
+(*XXX Add cache functions that can track the number of links *)

@@ -41,7 +41,7 @@ let show_delta_dot istates node fmt dt =
       node_name shapecolor;
 
   let print_init_node fmt x =
-    let {s;ok} = x in
+    (*let {s;ok} = x in*)
     if Hashtbl.mem istates x then
       let idx =
         if isize > 1 then string_of_int (rename_state x) else "" in
@@ -87,8 +87,8 @@ let nbw2dot mgr fmt nbwref =
 let show_delta_neverclaim accept_all istates node fmt dt =
   let module Label = Nbw.Ahw.Nfa.Label in
   let isize = Hashtbl.length istates in
-  let {s;ok} = node in
-  let node_name = rename_state node in
+  (*let {s;ok} = node in*)
+  (*let node_name = rename_state node in*)
 
   let print_init_node fmt x =
     if accept_all && x = _true then

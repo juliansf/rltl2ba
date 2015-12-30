@@ -2,6 +2,9 @@ module type S = sig
   type error =
   | Invalid_Ahw
   | Invalid_Ahw_Reference
+  | Invalid_Ahw_State
+  | Invalid_Ahw_Stratum
+  | Ahw_Reference_Exists of int
 
   exception Error of error
 
@@ -15,10 +18,28 @@ module type S = sig
   type strat_kind = SAccept | SReject | SBuchi | SCoBuchi | STransient
   type goodness = Good | Bad | Neutral
 
-  type manager =
+  (*
+  type ref_info = {
+    init: label;
+    mutable links: int;
+  }
+
+  type state_info = {
+    mutable delta: trans;
+    mutable stratum: stratum;
+    mutable link: int;
+    mutable size: int;
+    mutable is_final: bool;
+    mutable is_simplified: bool;
+    pred: (state, unit) Hashtbl.t;
+  }
+  *)
+  (*type manager =
     { ahw_bddmgr: Bdd.manager;
+      ahw_states: (state, state_info) Hashtbl.t;
+      ahw_link: (state, int) Hashtbl.t;
       ahw_delta: (state, trans) Hashtbl.t;
-      ahw_init: (reference, label) Hashtbl.t;
+      ahw_ref: (reference, ref_info) Hashtbl.t;
       ahw_final: (state, unit) Hashtbl.t;
       ahw_stratum: (state, stratum) Hashtbl.t;
       ahw_strata: (stratum, strat_kind) Hashtbl.t;
@@ -31,7 +52,20 @@ module type S = sig
       ahw_strata_size: (state, (stratum, int) Hashtbl.t) Hashtbl.t;
       ahw_false: state;
       ahw_true: state;
-    }
+    }*)
+
+  type manager (*=
+    { ahw_bddmgr: Bdd.manager;
+      ahw_states: (state, state_info) Hashtbl.t;
+      ahw_ref: (reference, ref_info) Hashtbl.t;
+      ahw_strata: (stratum, strat_kind) Hashtbl.t;
+      ahw_ref_number: int ref;
+      ahw_state_number: int ref;
+      ahw_stratum_number: int ref;
+      ahw_strata_size: (state, (stratum, int) Hashtbl.t) Hashtbl.t;
+      ahw_false: state;
+      ahw_true: state;
+    }*)
 
   type ahw = state
 
@@ -75,9 +109,17 @@ module type S = sig
   val get_stratum_kind: manager -> stratum -> strat_kind
   val get_stratum_states: manager -> stratum -> state list
   val get_stratum_size: manager -> t -> stratum -> int
-  val pred: manager -> state -> Misc.IntSet.t
+  val pred: manager -> reference -> (state -> Misc.IntSet.t)
   val goodness: manager -> state -> goodness
   val is_very_weak: manager -> state -> bool
+
+  (* Memory Management functions *)
+  val link_ref: manager -> reference -> unit
+  val unlink_ref: manager -> reference -> unit
+  val clean: ?keep_lastref:bool -> manager -> unit
+
+  (* Printing functions *)
+  val print_manager: manager -> unit
 end
 
 
