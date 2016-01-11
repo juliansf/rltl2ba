@@ -78,3 +78,8 @@ setup.data
 rltl2ba
 lib/cudd/cudd-2.4.2/include
 lib/cudd/cudd-2.4.2/nanotrav/nanotrav
+psl2ba/test/test_eq
+setup.data.inc
+src/rltl/automata/modified/
+test.dot
+testahw.dot
