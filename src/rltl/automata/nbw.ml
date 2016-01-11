@@ -17,7 +17,7 @@ module type S = sig
   type nbw =
     {
       nbw_delta : (state,trans) Hashtbl.t;
-      nbw_init: (state,unit) Hashtbl.t;
+      nbw_init: state
     }
 
   type manager =
@@ -29,6 +29,7 @@ module type S = sig
   type t = reference
 
   val _true : state
+  val _false : state
 
   val init: Ahw.manager -> manager
 
@@ -70,7 +71,7 @@ struct
   type nbw =
     {
       nbw_delta : (state,trans) Hashtbl.t;
-      nbw_init: (state,unit) Hashtbl.t;
+      nbw_init: state;
     }
 
   type manager =
@@ -82,6 +83,7 @@ struct
   type t = reference
 
   let _true = {s=[||]; o=[||]; f=[||]; ok=true}
+  let _false = {s=[|0|]; o=[|false|]; f=[|1|]; ok=false}
 
   (* Initialization function *)
   let init ahwmgr =
@@ -94,10 +96,11 @@ struct
   let find mgr x = Hashtbl.find mgr.nbw_automata x
   let remove mgr x = Hashtbl.remove mgr.nbw_automata x
 
-  let is_false aut = Hashtbl.length aut.nbw_delta = 0
+  let is_false aut =
+    aut.nbw_init = _false
+
   let is_true aut =
-    Hashtbl.length aut.nbw_delta = 1
-    && Hashtbl.mem aut.nbw_delta _true
+    aut.nbw_init = _true
 
   (* Auxiliary functions *)
   let new_reference mgr = incr mgr.nbw_aut_number; !(mgr.nbw_aut_number)
@@ -553,7 +556,10 @@ struct
             ) y_delta
         end
       done;
-      (*IntSetHashtbl.iter (fun x _ -> Format.eprintf "dead: %a\n\n" printset x) dead;*)
+      Logger.debug ~level:200 "dead.length = %d\n" (IntSetHashtbl.length dead);
+      IntSetHashtbl.iter (fun x _ -> Format.eprintf "dead: %a@." printset x) dead;
+      Logger.debug ~level:200 "initial.length = %d\n" (IntSetHashtbl.length initial);
+      Logger.debug ~level:200 "...\n";
 
       let boundary = IntSetHashtbl.create 8 in
       begin try
@@ -561,8 +567,10 @@ struct
           let t = IntSetHashtbl.copy dead in
 
           IntSetHashtbl.iter (fun x l ->
-            IntSetHashtbl.remove initial x;
-            if IntSetHashtbl.length initial = 0 then raise Exit;
+            if IntSetHashtbl.mem initial x then
+              if IntSetHashtbl.length initial = 1 then
+                raise Exit
+              else IntSetHashtbl.remove initial x;
 
             IntSetHashtbl.iter (fun y _ ->
               if y != x then IntSetHashtbl.add boundary y ()) (get_reverse x)
@@ -577,25 +585,44 @@ struct
                     else IntSetHashtbl.remove x_delta y;
                 ) x_delta
               with Exit -> (
-                IntSetHashtbl.reset x_delta;
-                IntSetHashtbl.add x_delta IS.empty Label.dtrue )
+                  IntSetHashtbl.reset x_delta;
+                  IntSetHashtbl.add x_delta IS.empty Label.dtrue )
             end;
 
             if IntSetHashtbl.length x_delta = 0 then
               IntSetHashtbl.add dead x false
             else if IntSetHashtbl.mem x_delta IS.empty &&
-                Label.is_true (IntSetHashtbl.find x_delta IS.empty) then
+                    Label.is_true (IntSetHashtbl.find x_delta IS.empty) then
               IntSetHashtbl.add dead x true
           ) boundary;
           IntSetHashtbl.reset boundary
         done;
-        with Exit -> (
-          (*Format.eprintf "initial is dead: %a@." printset (!initial);*)
+      with Exit -> (
+          let x = IntSetHashtbl.fold (fun x _ _ -> x) initial IS.empty in
+          let x_delta = IntSetHashtbl.find nbw_delta x in
+
+          Format.eprintf "initial state = %a@." printset x;
+          show_arrows x x_delta;
+          Logger.debug ~level:200 "initial.length = %d\n" (IntSetHashtbl.length initial);
+          if IntSetHashtbl.length x_delta > 1 then failwith "Nbw.internal_error"
+          else if IntSetHashtbl.length x_delta = 1 then begin
+            Logger.debug ~level:200 "Automaton is TRUE.\n";
+            IntSetHashtbl.remove nbw_delta x;
+            IntSetHashtbl.add nbw_delta IS.empty x_delta;
+            IntSetHashtbl.remove initial x;
+            IntSetHashtbl.add initial IS.empty ();
+          end
+          else begin
+            Logger.debug ~level:200 "Automaton is FALSE.\n";
+            (*IntSetHashtbl.remove initial x;*)
+          end
+          (*Format.eprintf "initial is dead: %a@." printset (initial);*)
           (*IntSetHashtbl.remove nbw_delta (!initial);*)
           (*if IntSetHashtbl.find dead (!initial) then
             initial := IS.empty*)
         );
       end;
+
       (* ... here the automaton can be simplified ... END *)
 
       (*Format.eprintf "initial: %a@." printset (!initial);
@@ -615,6 +642,8 @@ struct
           let f_init = combine_ranks r_init in
 
           (* Create the initial states *)
+          Logger.debug ~level:200 "[#]initial.length = %d\n"
+            (IntSetHashtbl.length initial);
           let s = Array.of_list init_elements in
           List.iter (fun fs ->
             let ok = ref true in
@@ -629,7 +658,6 @@ struct
           ) f_init;
         ) initial;
 
-
         while not (Queue.is_empty waiting) do
           let node : state = Queue.take waiting in
           if not (Hashtbl.mem nodes_map node) then begin
@@ -638,7 +666,6 @@ struct
             Hashtbl.add nodes_map_reverse node_idx node;
             let {s;o;f;ok} = node in
             Format.eprintf "%d -> %a@." node_idx print_node node;
-
             let s_set = Array.fold_right IS.add s IS.empty in
             (*let arrows = Hashtbl.create 8 in*)
             let s_arrows = IntSetHashtbl.find nbw_delta s_set in
@@ -657,7 +684,8 @@ struct
                   if b=0 then a
                   else if a = 0 then b
                   else min a b) 0 pred_rank
-              ) s' in
+                ) s' in
+
               let r_is = List.mapi (fun i q ->
                 rank mgr ahw rank_type s'max.(i) q) is_elements in
               let f_is = combine_ranks r_is in
@@ -700,6 +728,7 @@ struct
       (*   Printf.eprintf "] "; *)
       (* ) f_init; *)
       (* Printf.eprintf "]\n"; *)
+      Logger.debug ~level:200 "Reached end of [compute].\n"
     in
 
     (*
@@ -711,19 +740,7 @@ struct
     show_ranks StratifiedRank mgr ahw;
     *)
 
-    let t_total,_ = Misc.chrono (fun _ ->
-      if Ahw.bottom mgr.nbw_ahwmgr = ahw then ()
-      else if Ahw.top mgr.nbw_ahwmgr = ahw then begin
-        let true_state = {s=[||]; o=[||]; f=[||]; ok=true} in
-        let true_delta = Hashtbl.create 1 in
-        let node_idx = new_node () in
-        Hashtbl.add true_delta true_state Label.dtrue;
-        Hashtbl.add delta true_state true_delta;
-        Hashtbl.add initial_states true_state ();
-        Hashtbl.add nodes_map true_state (node_idx);
-        Hashtbl.add nodes_map_reverse node_idx true_state;
-      end
-      else compute ()) () in
+    let t_total,_ = Misc.chrono compute () in
 
     (* Here the automaton can be simplified as well *)
 
@@ -755,7 +772,6 @@ struct
     let _delta = Hashtbl.create (Hashtbl.length delta) in
     let _accept = Hashtbl.create 8 in
     let _reject = Hashtbl.create 8 in
-
 
     Hashtbl.iter (fun x succ ->
         let xid = Hashtbl.find nodes_map x in
@@ -832,10 +848,11 @@ struct
     in
 
     (* Compute equivalent rejecting states *)
+    Logger.debug ~level:200 "_reject.length = %d\n" (Hashtbl.length _reject);
     Hashtbl.iter (fun i _ ->
         let succ = Hashtbl.find _delta i in
         let hash = Hashtbl.hash succ in
-        (*Printf.eprintf "node[%d][%d]\n" i hash;*)
+        Logger.debug ~level:200 "_reject_node[%d][%d]\n" i hash;
         if Hashtbl.mem _node_rel_rej hash then begin
           let candidates = Hashtbl.find _node_rel_rej hash in
           try Hashtbl.iter (fun succ' j ->
@@ -961,7 +978,6 @@ struct
           ) succ;
       ) _delta;
 
-
     let delta = Hashtbl.create (Hashtbl.length _delta) in
     Hashtbl.iter (fun i succ ->
         let succ' = Hashtbl.create (Hashtbl.length succ) in
@@ -969,7 +985,14 @@ struct
             Hashtbl.add succ' (Hashtbl.find nodes_map_reverse j) l;
           ) succ;
         Hashtbl.add delta (Hashtbl.find nodes_map_reverse i) succ';
-      ) _delta;
+    ) _delta;
+
+
+
+    Hashtbl.iter (fun i j ->
+        Logger.debug ~level:200 "equivalent_rej(%d,%d)\n" i j
+    ) _node_rel_map_rej;
+
 
     let _initial =
       if is_accepting _initial then
@@ -978,19 +1001,19 @@ struct
         Hashtbl.find _node_rel_map_rej _initial
     in
 
-    let initial_states = Hashtbl.create 1 in
-      Hashtbl.add initial_states (Hashtbl.find nodes_map_reverse _initial) ();
+    Logger.debug ~level:200 "delta.length = %d\n" (Hashtbl.length delta);
+    let initial_state = Hashtbl.find nodes_map_reverse _initial in
+    Logger.debug ~level:200 "Rltl.Nbw.1005\n";
 
     Format.eprintf "NBW creation time: %f@." t_total;
     Format.eprintf "States: %d@." (Hashtbl.length delta);
 
-    Hashtbl.iter (fun x _ ->
-        Format.eprintf "Initial state: %a@." print_node x;
-      ) initial_states;
+    Format.eprintf "Initial state: %a@." print_node initial_state;
+
     let aut =
       {
         nbw_delta = delta;
-        nbw_init = initial_states;
+        nbw_init = initial_state;
       }
     in
     let _ref = new_reference mgr in

@@ -76,7 +76,10 @@
 %token NOT
 %token OR
 %token OVERLAP
-%token OVERLAPPED
+%token ORELEASE
+%token OSRELEASE
+%token OUNTIL
+%token OWUNTIL
 %token PLUS
 %token RB
 %token RELEASE
@@ -103,7 +106,7 @@
 %nonassoc below_WITH
 %nonassoc WITH DELAY
 /*%nonassoc below_UNTIL*/
-%nonassoc UNTIL WUNTIL RELEASE SRELEASE
+%nonassoc UNTIL WUNTIL RELEASE SRELEASE OUNTIL OWUNTIL ORELEASE OSRELEASE
 %nonassoc NOT
 %left PLUS BARBAR
 %left AMPERAMPER
@@ -152,14 +155,12 @@ expr:
 | expr power_oper expr WITH error
     { expected "delay" $startpos($5) $endpos($5) }
 
-/*| x=expr OVERLAPPED pf=power_oper y=expr %prec below_WITH
+| x=expr pf=overlapped_power_oper y=expr %prec below_WITH
     { mkexp (Pexp_overlap (mkexp (Pexp_power (pf, x, y, None)) $startpos $endpos)) $startpos $endpos }
-| x=expr OVERLAPPED pf=power_oper y=expr WITH DELAY r=expr
+| x=expr pf=overlapped_power_oper y=expr WITH DELAY r=expr
     { mkexp (Pexp_overlap (mkexp (Pexp_power (pf, x, y, Some r)) $startpos $endpos)) $startpos $endpos }
-| expr OVERLAPPED error
-    { expected "power operator" $startpos($3) $endpos($3) }
-| expr OVERLAPPED power_oper expr WITH error
-    { expected "delay" $startpos($5) $endpos($5) }*/
+| expr overlapped_power_oper expr WITH error
+    { expected "delay" $startpos($5) $endpos($5) }
 
 | oper=prefix_oper LP e=expr RP
     { mkexp (oper e) $startpos $endpos }
@@ -282,8 +283,14 @@ ident_type_list:
   UNTIL { Until }
 | WUNTIL { WeakUntil }
 | RELEASE { Release }
-| SRELEASE {StrongRelease }
+| SRELEASE { StrongRelease }
 ;
+
+%inline overlapped_power_oper:
+  OUNTIL { Until }
+| OWUNTIL { WeakUntil }
+| ORELEASE { Release }
+| OSRELEASE { StrongRelease }
 
 %inline prefix_oper:
   OVERLAP { fun e -> Pexp_overlap e }

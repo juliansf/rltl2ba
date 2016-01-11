@@ -1,6 +1,16 @@
 module Nbw = Nbw.Make(Ahw.Make(Nfa.Make(Bool.Default.B)))
 open Nbw
 
+
+let print_node fmt {s;o;f;ok} =
+    Format.fprintf fmt "{ s=[ ";
+    Array.iter (Format.fprintf fmt "%d ") s;
+    Format.fprintf fmt "], o=[ ";
+    Array.iteri (fun i b -> if b then Format.fprintf fmt "%d " (s.(i))) o;
+    Format.fprintf fmt "], f=[ ";
+    Array.iter (Format.fprintf fmt "%d ") f;
+    Format.fprintf fmt "], ok=%B }" ok
+
 let state_is_true x = x.s = [||] && x.ok
 
 let state_names : (state,int) Hashtbl.t = Hashtbl.create 8
@@ -21,16 +31,15 @@ let rename names count x =
 
 let rename_state = rename state_names state_count
 
-let show_delta_dot istates node fmt dt =
+let show_delta_dot istate node fmt dt =
   let module Label = Nbw.Ahw.Nfa.Label in
-  let isize = Hashtbl.length istates in
   let {s;ok} = node in
   let shapecolor = if ok then "doublecircle color=green" else "circle" in
   let node_name = rename_state node in
 
-  if Hashtbl.mem istates node then
-    let idx =
-      if isize > 1 then string_of_int node_name else "" in
+  if node = istate then
+    let idx = ""
+    (*if isize > 1 then string_of_int node_name else ""*) in
     Format.fprintf fmt
       ("init%s [shape=%s fillcolor=lightgray "
        ^^ "style=filled width=0.9 fontsize=20];@;")
@@ -42,9 +51,9 @@ let show_delta_dot istates node fmt dt =
 
   let print_init_node fmt x =
     (*let {s;ok} = x in*)
-    if Hashtbl.mem istates x then
-      let idx =
-        if isize > 1 then string_of_int (rename_state x) else "" in
+    if x = istate then
+      let idx = ""
+        (*if isize > 1 then string_of_int (rename_state x) else ""*) in
       Format.fprintf fmt "init%s" idx
     else
       Format.fprintf fmt "%d" (rename_state x) in
@@ -65,9 +74,7 @@ let nbw2dot mgr fmt nbwref =
   let visited = Hashtbl.create (Hashtbl.length nbw.nbw_delta) in
   let waiting = Queue.create () in
 
-  Hashtbl.iter (fun node _ ->
-    Queue.add node waiting
-  ) nbw.nbw_init;
+  Queue.add nbw.nbw_init waiting;
 
   while not (Queue.is_empty waiting) do
     let x = Queue.take waiting in
@@ -84,9 +91,8 @@ let nbw2dot mgr fmt nbwref =
 
 
 
-let show_delta_neverclaim accept_all istates node fmt dt =
+let show_delta_neverclaim accept_all istate node fmt dt =
   let module Label = Nbw.Ahw.Nfa.Label in
-  let isize = Hashtbl.length istates in
   (*let {s;ok} = node in*)
   (*let node_name = rename_state node in*)
 
@@ -96,11 +102,11 @@ let show_delta_neverclaim accept_all istates node fmt dt =
     else
       let accept = if x.ok then "accept" else "T0" in
       let node_name = rename_state x in
-      if Hashtbl.mem istates x then
-        if isize > 1 then
+      if x = istate then
+        (*if isize > 1 then
           Format.fprintf fmt "%s_S%d_init" accept node_name
         else Format.fprintf fmt "%s_init" accept
-      else
+          else*)
         Format.fprintf fmt "%s_S%d" accept node_name
   in
 
@@ -125,8 +131,10 @@ let print_nbw mgr fmt nbwref =
 
   Format.fprintf fmt "@[<v 0>never {@;";
 
+  Logger.debug ~level:200 "init.ok = %B, is_false? %B" nbw.nbw_init.ok (is_false nbw);
   if is_false nbw then
-    Format.fprintf fmt "@[<v 8>T0_init:@;false;@]@;"
+    (*Format.fprintf fmt "@[<v 8>T0_init:@;false;@]@;"*)
+    Format.fprintf fmt "@[<v 8>    false; /* Empty automaton. */ @]@;"
   else if is_true nbw then begin
     let true_delta = Hashtbl.find nbw.nbw_delta _true in
     Format.fprintf fmt "%a" (show_delta_neverclaim false nbw.nbw_init _true) true_delta
@@ -137,9 +145,7 @@ let print_nbw mgr fmt nbwref =
     let visited = Hashtbl.create (Hashtbl.length nbw.nbw_delta) in
     let waiting = Queue.create () in
 
-    Hashtbl.iter (fun node _ ->
-      Queue.add node waiting
-    ) nbw.nbw_init;
+    Queue.add nbw.nbw_init waiting;
 
     while not (Queue.is_empty waiting) do
       let x = Queue.take waiting in

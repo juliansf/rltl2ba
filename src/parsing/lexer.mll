@@ -39,7 +39,10 @@
       "not", NOT;
       "or", OR;
       "overlap", OVERLAP;
-      "overlapped", OVERLAPPED;
+      "overlapped_release", ORELEASE;
+      "overlapped_strong_release", OSRELEASE;
+      "overlapped_until", OUNTIL;
+      "overlapped_weak_until", OWUNTIL;
       "release", RELEASE;
       "R", RELEASE;
       "strong_release", SRELEASE;

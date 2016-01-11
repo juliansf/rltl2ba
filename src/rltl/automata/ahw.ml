@@ -412,7 +412,7 @@ struct
       is_simplified = true;
     } in
     Hashtbl.add states_tbl _false _info_false;
-    Hashtbl.add ref_tbl _false {init=Label.dfalse; rsize=1; rlinks=1};
+    Hashtbl.add ref_tbl _false {init=Label.dstate 0; rsize=1; rlinks=1};
     let _false_stratum = Hashtbl.create 1 in
     Hashtbl.add _false_stratum _false ();
     Hashtbl.add strata_tbl 0 {states=_false_stratum; kind=STransient};
@@ -425,7 +425,7 @@ struct
       is_simplified = true;
     } in
     Hashtbl.add states_tbl _true _info_true;
-    Hashtbl.add ref_tbl _true {init=Label.dtrue; rsize=1; rlinks=1};
+    Hashtbl.add ref_tbl _true {init=Label.dstate 1; rsize=1; rlinks=1};
     let _true_stratum = Hashtbl.create 1 in
     Hashtbl.add _true_stratum _true ();
     Hashtbl.add strata_tbl 1 {states=_true_stratum; kind=STransient};
@@ -562,6 +562,7 @@ struct
     while not (Queue.is_empty waiting) do
       let x = Queue.take waiting in
       if not (Hashtbl.mem visited x) then begin
+        Hashtbl.add visited x ();
         let xinfo = state_info mgr x in
         Label.iter_states (fun y ->
             let y_pred = if Hashtbl.mem reverse y then
@@ -785,6 +786,18 @@ struct
     done;
     Logger.debug ~level:100 "Ahw.simplify.end\n"
 
+  let simplify' mgr l =
+    Label.iter_states (simplify mgr) l;
+    let l' = Label.map_states (fun q ->
+        let delta = get_delta mgr q in
+        if Label.is_true delta then Label.dtrue
+        else if Label.is_false delta then Label.dfalse
+        else Label.dstate q
+      ) l in
+    if Label.is_true l' then Label.dstate mgr.ahw_true
+    else if Label.is_false l' then Label.dstate mgr.ahw_false
+    else l'
+
   let new_simplified_ref mgr q =
     simplify mgr q;
 
@@ -823,98 +836,49 @@ struct
 
   (** Builds the disjunction of two AHWs *)
   let disj mgr x y =
-    let dx = get_delta mgr x in
-    let dy = get_delta mgr y in
-    if Label.is_true dx || Label.is_true dy then
-      top mgr
-    else if Label.is_false dx then
-      y
-    else if Label.is_false dy then
-      x
+    if x = top mgr || y = top mgr then top mgr
+    else if x = bottom mgr then y
+    else if y = bottom mgr then x
     else begin
-      let q = new_state mgr in
-      let h = new_stratum mgr in
-      (* Build the transition *)
-      let label = Label.simplify (Label.dor dx dy) in
-      Label.iter_states (link mgr) label;
-      set_delta mgr q label;
-      set_stratum mgr q h;
-      set_stratum_kind mgr h SReject;
-      simplify mgr q;
-      link mgr q;
-      q
-    end
+      let x' = get_init mgr x in
+      let x'succ = Label.map_states (get_delta mgr) x' in
+      let y' = get_init mgr y in
+      let y'succ = Label.map_states (get_delta mgr) y' in
+      let x'y'succ = Label.dor x'succ y'succ in
 
-  (** Builds the disjunction of two AHWs *)
-  let disj' mgr x y =
-    let x' = get_init mgr x in
-    let y' = get_init mgr y in
-    if Label.is_true x' || Label.is_true y' then
-      top mgr
-    else if Label.is_false x' then
-      y
-    else if Label.is_false y' then
-      x
-    else
-      let l = Label.dor' x' y' in
-      if Label.is_true (Label.map_states (get_delta mgr) l) then
+      if Label.is_true x'y'succ then
         top mgr
       else begin
+        let l = Label.dor x' y' in
         let r = new_ref mgr in
         link_states mgr l;
         set_init mgr r l;
         r
       end
-  let disj = disj'
+    end
 
   (** Builds the conjunction of two AHWs *)
   let conj mgr x y =
-    (* Printf.fprintf stderr "Disjunction... %!"; *)
-    let dx = get_delta mgr x in
-    let dy = get_delta mgr y in
-    if Label.is_false dx || Label.is_false dy then
-      bottom mgr
-    else if Label.is_true dx then
-      y
-    else if Label.is_true dy then
-      x
+    if x = bottom mgr || y = bottom mgr then bottom mgr
+    else if x = top mgr then y
+    else if y = top mgr then x
     else begin
-      (* Create the new state for regular *)
-      let q = new_state mgr in
-      let h = new_stratum mgr in
-      (* Build the transition *)
-      set_delta mgr q (Label.simplify (Label.dand dx dy));
-      set_stratum mgr q h;
-      set_stratum_kind mgr h SReject;
-      simplify mgr q;
-      q
-    end
+      let x' = get_init mgr x in
+      let x'succ = Label.map_states (get_delta mgr) x' in
+      let y' = get_init mgr y in
+      let y'succ = Label.map_states (get_delta mgr) y' in
+      let x'y'succ = Label.dand x'succ y'succ in
 
-  (** Builds the conjunction of two AHWs *)
-  let conj' mgr x y =
-    let x' = get_init mgr x in
-    let y' = get_init mgr y in
-    (*let z = Label.dand x' y' in*)
-    (*Printf.eprintf "&&&&&&CONJ'\nx=%s\ny=%s\n"
-      (Label.to_string x') (Label.to_string y');
-      Printf.eprintf "z=%s\n\n" (Label.to_string z);*)
-    if Label.is_false x' || Label.is_false y' then
-      bottom mgr
-    else if Label.is_true x' then
-      y
-    else if Label.is_true y' then
-      x
-    else
-      let l = Label.dand' x' y' in
-      if Label.is_false (Label.map_states (get_delta mgr) l) then
+      if Label.is_false x'y'succ then
         bottom mgr
       else begin
+        let l = Label.dand x' y' in
         let r = new_ref mgr in
         link_states mgr l;
         set_init mgr r l;
         r
       end
-  let conj = conj'
+    end
 
   (** Builds an AHW representing an existential NFA for fusion. *)
   let ahw_of_nfa_exist mgr nfa stype next : state =
@@ -1149,15 +1113,15 @@ struct
 
   (** Builds the universal sequence of an NFA and an AHW with overlap *)
   let univ_fusion mgr nfa x =
-      let dx = try get_delta mgr x
-        with Not_found -> failwith "Ahw.univ_fusion.get_delta" in
+    let x' = get_init mgr x in
+    let x'succ = Label.map_states (get_delta mgr) x' in
 
-    if nfa = Nfa.nfa_false || Label.is_true dx then
+    if nfa = Nfa.nfa_false || Label.is_true x'succ then
       top mgr
     else begin
       let succ =
-        if Label.is_false dx then Label.dfalse
-        else dx
+        if Label.is_false x'succ then Label.dfalse
+        else x'succ
       in
       let q = ahw_of_nfa_univ mgr nfa `MultiStrata (fun _ -> succ) in
 

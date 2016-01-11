@@ -15,7 +15,7 @@ module type S = sig
   type nbw =
     {
       nbw_delta : (state,trans) Hashtbl.t;
-      nbw_init: (state,unit) Hashtbl.t;
+      nbw_init: state;
     }
 
   type manager =
@@ -27,6 +27,7 @@ module type S = sig
   type t = reference
 
   val _true: state
+  val _false: state
 
   val init: Ahw.manager -> manager
 

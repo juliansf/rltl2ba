@@ -153,7 +153,7 @@ let ahw2dot mgr fmt ahw =
   let visited : (state,unit) Hashtbl.t = Hashtbl.create 8 in
 
   (* Add the initial state *)
-  let initials = Misc.uniques (Ahw.Nfa.Label.states (get_init mgr ahw)) in
+  let initials = Misc.uniques (Ahw.Nfa.Label.states init) in
   List.iter (fun i ->
       Logger.debug ~level:10 "s:%d\n" i;
       Queue.add i waiting; Hashtbl.add visited i ()) initials;
