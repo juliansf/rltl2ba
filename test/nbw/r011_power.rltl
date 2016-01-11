@@ -1,0 +1,17 @@
+-- With trivial delay
+{ a until b }
+
+or
+
+-- With one letter delay
+{ (a;b) until (c;d) with delay r }
+
+or
+
+-- With possibly empty delay
+{ (e;f) until (g;h) with delay r* }
+
+or
+
+-- With complex delay
+{ a until b with delay (r;s* + t) }

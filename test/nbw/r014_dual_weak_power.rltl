@@ -1,0 +1,17 @@
+-- With trivial delay
+{ a strong_release b }
+
+or
+
+-- With one letter delay
+{ (a;b) strong_release (c;d) with delay r }
+
+or
+
+-- With possibly empty delay
+{ (e;f) strong_release (g;h) with delay r* }
+
+or
+
+-- With complex delay
+{ a strong_release b with delay (r;s* + t) }

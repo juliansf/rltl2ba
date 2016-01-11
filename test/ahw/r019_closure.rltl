@@ -1,0 +1,9 @@
+-- The closure of a regular expression [r] is the infinite language consisting
+-- of words that either have a prefix accepted by the regular expression, or
+-- for any prefix, it is also a prefix of a word accepted by [r].
+
+Cl(a*) -- Equals [true]
+
+and
+
+Cl(a*;b)

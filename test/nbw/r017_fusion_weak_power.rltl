@@ -1,0 +1,17 @@
+-- With trivial delay
+{ a overlapped_weak_until b }
+
+or
+
+-- With one letter delay
+{ (a;b) overlapped_weak_until (c;d) with delay r }
+
+or
+
+-- With possibly empty delay
+{ (e;f) overlapped_weak_until (g;h) with delay r* }
+
+or
+
+-- With complex delay
+{ a overlapped_weak_until b with delay (r;s* + t) }
